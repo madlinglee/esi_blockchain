@@ -104,7 +104,6 @@ dev::eth::BlockHeader constructHeader(
 	u256 const& _timestamp,
 	bytes const& _extraData);
 void updateEthashSeal(dev::eth::BlockHeader& _header, h256 const& _mixHash, dev::eth::Nonce const& _nonce);
-void executeTests(const std::string& _name, boost::filesystem::path const& _testPathAppendix, boost::filesystem::path const& _fillerPathAppendix, std::function<json_spirit::mValue(json_spirit::mValue const&, bool)> doTests);
 RLPStream createRLPStreamFromTransactionFields(json_spirit::mObject const& _tObj);
 json_spirit::mObject fillJsonWithStateChange(eth::State const& _stateOrig, eth::State const& _statePost, eth::ChangeLog const& _changeLog);
 json_spirit::mObject fillJsonWithState(eth::State const& _state);
@@ -114,8 +113,6 @@ json_spirit::mObject fillJsonWithTransaction(eth::Transaction const& _txn);
 //Fill Test Functions
 int createRandomTest();	//returns 0 if succeed, 1 if there was an error;
 void doRlpTests(json_spirit::mValue const& _input);
-void addClientInfo(json_spirit::mValue& v, boost::filesystem::path const& _testSource);
-void removeComments(json_spirit::mValue& _obj);
 
 /// Allows observing test execution process.
 /// This class also provides methods for registering and notifying the listener

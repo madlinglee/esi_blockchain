@@ -21,10 +21,64 @@
 #include <test/tools/libtesteth/TestHelper.h>
 #include <test/tools/libtesteth/TestSuite.h>
 #include <test/tools/libtesteth/JsonSpiritHeaders.h>
+#include <test/tools/libtesteth/Stats.h>
 #include <string>
 using namespace std;
 using namespace dev;
 namespace fs = boost::filesystem;
+
+//Helper functions for test proccessing
+namespace {
+
+void removeComments(json_spirit::mValue& _obj)
+{
+	if (_obj.type() == json_spirit::obj_type)
+	{
+		std::list<string> removeList;
+		for (auto& i: _obj.get_obj())
+		{
+			if (i.first.substr(0, 2) == "//")
+			{
+				removeList.push_back(i.first);
+				continue;
+			}
+
+			removeComments(i.second);
+		}
+		for (auto& i: removeList)
+			_obj.get_obj().erase(_obj.get_obj().find(i));
+	}
+	else if (_obj.type() == json_spirit::array_type)
+	{
+		for (auto& i: _obj.get_array())
+			removeComments(i);
+	}
+}
+
+void addClientInfo(json_spirit::mValue& _v, fs::path const& _testSource)
+{
+	for (auto& i: _v.get_obj())
+	{
+		json_spirit::mObject& o = i.second.get_obj();
+		json_spirit::mObject clientinfo;
+
+		string comment;
+		if (o.count("_info"))
+		{
+			json_spirit::mObject& existingInfo = o["_info"].get_obj();
+			if (existingInfo.count("comment"))
+				comment = existingInfo["comment"].get_str();
+		}
+
+		clientinfo["filledwith"] = test::prepareVersionString();
+		clientinfo["lllcversion"] = test::prepareLLLCVersionString();
+		clientinfo["source"] = _testSource.string();
+		clientinfo["comment"] = comment;
+		o["_info"] = clientinfo;
+	}
+}
+
+}
 
 namespace dev
 {
@@ -87,39 +141,13 @@ void TestSuite::runAllTestsInFolder(string const& _testFolder) const
 	if (test::Options::get().filltests)
 		fileCount *= 2; //tests are checked when filled and after they been filled
 
-	fs::path const destTestFolder = fs::path(suiteFolder()) / _testFolder;
-	fs::path const srcTestFolder = fs::path(suiteFillerFolder()) / _testFolder;
-
-	auto suiteTestDo = [this](json_spirit::mValue const& _input, bool _fillin)
-	{
-		return doTests(_input, _fillin);
-	};
-
 	auto testOutput = dev::test::TestOutputHelper(fileCount);
 	for (auto const& file: files)
 	{
 		testOutput.showProgress();
 		test::TestOutputHelper::setCurrentTestFileName(file.filename().string());
-		executeTests(file.filename().string(), destTestFolder.string(), srcTestFolder.string(), suiteTestDo);
+		executeTest(_testFolder, file);
 	}
-}
-
-void TestSuite::copyAllTestsFromFolder(string const& _testFolder) const
-{
-	std::vector<fs::path> const files = test::getJsonFiles(getFullPathFiller(_testFolder).string());
-	for (auto const& file: files)
-	{
-		fs::path const destFile = getFullPath(_testFolder) / file.filename().string();
-		fs::path const srcFile = getFullPathFiller(_testFolder) / file.filename().string();
-		clog << "Copying " << srcFile.string() << "\n";
-		clog << " TO " << destFile.string() << "\n";
-		assert(srcFile.string() != destFile.string());
-		auto testOutput = dev::test::TestOutputHelper();
-		testOutput.showProgress();
-		dev::test::copyFile(srcFile.string(), destFile.string());
-		BOOST_REQUIRE_MESSAGE(boost::filesystem::exists(destFile.string()), "Error when copying the test file!");
-	}
-	runAllTestsInFolder(_testFolder); //check that copied tests are valid
 }
 
 fs::path TestSuite::getFullPathFiller(string const& _testFolder) const
@@ -130,6 +158,69 @@ fs::path TestSuite::getFullPathFiller(string const& _testFolder) const
 fs::path TestSuite::getFullPath(string const& _testFolder) const
 {
 	return fs::path(test::getTestPath()) / suiteFolder() / _testFolder;
+}
+
+void TestSuite::executeTest(string const& _testFolder, fs::path const& _jsonFileName) const
+{
+	fs::path boostTestsRepoPath = fs::path(getTestPath());
+	fs::path boostRelativeTestPath = fs::relative(_jsonFileName, boostTestsRepoPath);
+	string testname = _jsonFileName.stem().string();
+	bool isCopySource = false;
+	if (testname.rfind("Filler") != string::npos)
+		testname = testname.substr(0, testname.rfind("Filler"));
+	else if (testname.rfind("Copier") != string::npos)
+	{
+		testname = testname.substr(0, testname.rfind("Copier"));
+		isCopySource = true;
+	}
+	else
+		BOOST_REQUIRE_MESSAGE(false, "Incorrect file suffix in the filler folder! " + _jsonFileName.string());
+
+	// Filename of the test that would be generated
+	fs::path boostTestPath = getFullPath(_testFolder) / fs::path(testname + ".json");
+
+	// TODO: An old unmaintained way to gather execution stats needs review.
+	if (Options::get().stats)
+		Listener::registerListener(Stats::get());
+
+	if (Options::get().filltests)
+	{
+		if (isCopySource)
+		{
+			clog << "Copying " << _jsonFileName.string() << "\n";
+			clog << " TO " << boostTestPath.string() << "\n";
+			assert(_jsonFileName.string() != boostTestPath.string());
+			TestOutputHelper::showProgress();
+			dev::test::copyFile(_jsonFileName.string(), boostTestPath.string());
+			BOOST_REQUIRE_MESSAGE(boost::filesystem::exists(boostTestPath.string()), "Error when copying the test file!");
+		}
+		else
+		{
+			if (!Options::get().singleTest)
+				cnote << "Populating tests...";
+
+			json_spirit::mValue v;
+			string s = asString(dev::contents(_jsonFileName.string()));
+			BOOST_REQUIRE_MESSAGE(s.length() > 0, "Contents of " + _jsonFileName.string() + " is empty.");
+
+			json_spirit::read_string(s, v);
+			removeComments(v);
+			json_spirit::mValue output = doTests(v, true);
+			addClientInfo(output, boostRelativeTestPath);
+			writeFile(boostTestPath.string(), asBytes(json_spirit::write_string(output, true)));
+		}
+	}
+
+	// Test is generated. Now run it and check that there should be no errors
+	if ((Options::get().singleTest && Options::get().singleTestName == testname) || !Options::get().singleTest)
+		cnote << "TEST " << testname << ":";
+
+	json_spirit::mValue v;
+	string s = asString(dev::contents(boostTestPath.string()));
+	BOOST_REQUIRE_MESSAGE(s.length() > 0, "Contents of " << boostTestPath.string() << " is empty. Have you cloned the 'tests' repo branch develop and set ETHEREUM_TEST_PATH to its path?");
+	json_spirit::read_string(s, v);
+	Listener::notifySuiteStarted(testname);
+	doTests(v, false);
 }
 
 }
