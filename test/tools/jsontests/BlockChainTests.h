@@ -35,21 +35,21 @@ class BlockchainTestSuite: public TestSuite
 {
 public:
 	json_spirit::mValue doTests(json_spirit::mValue const& _input, bool _fillin) const override;
-	std::string suiteFolder() const override;
-	std::string suiteFillerFolder() const override;
+	boost::filesystem::path suiteFolder() const override;
+	boost::filesystem::path suiteFillerFolder() const override;
 };
 
 class BCGeneralStateTestsSuite: public BlockchainTestSuite
 {
-	std::string suiteFolder() const override;
-	std::string suiteFillerFolder() const override;
+	boost::filesystem::path suiteFolder() const override;
+	boost::filesystem::path suiteFillerFolder() const override;
 };
 
 class TransitionTestsSuite: public TestSuite
 {
 	json_spirit::mValue doTests(json_spirit::mValue const& _input, bool _fillin) const override;
-	std::string suiteFolder() const override;
-	std::string suiteFillerFolder() const override;
+	boost::filesystem::path suiteFolder() const override;
+	boost::filesystem::path suiteFillerFolder() const override;
 };
 
 struct ChainBranch

@@ -165,14 +165,14 @@ class TransactionTestSuite: public TestSuite
 		return v;
 	}//doTransactionTests
 
-	std::string suiteFolder() const override
+	boost::filesystem::path suiteFolder() const override
 	{
-		return "TransactionTests";
+		return boost::filesystem::path("TransactionTests");
 	}
 
-	std::string suiteFillerFolder() const override
+	boost::filesystem::path suiteFillerFolder() const override
 	{
-		return "TransactionTestsFiller";
+		return boost::filesystem::path("TransactionTestsFiller");
 	}
 };
 

@@ -464,14 +464,14 @@ class VmTestSuite: public TestSuite
 		return v;
 	}
 
-	std::string suiteFolder() const override
+	boost::filesystem::path suiteFolder() const override
 	{
-		return "VMTests";
+		return boost::filesystem::path("VMTests");
 	}
 
-	std::string suiteFillerFolder() const override
+	boost::filesystem::path suiteFillerFolder() const override
 	{
-		return "VMTestsFiller";
+		return boost::filesystem::path("VMTestsFiller");
 	}
 };
 
