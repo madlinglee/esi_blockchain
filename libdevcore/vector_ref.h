@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <vector>
 #include <string>
+#include <mutex>
 
 #ifdef __INTEL_COMPILER
 #pragma warning(disable:597) //will not be called for implicit or explicit conversions
@@ -76,10 +77,15 @@ public:
 	void cleanse()
 	{
 		static unsigned char s_cleanseCounter = 0;
+		size_t count = 0;
+		static std::mutex x_cleanseCounter;
+		{
+			std::lock_guard<std::mutex> l(x_cleanseCounter);
+			count = s_cleanseCounter;
+		}
 		uint8_t* p = (uint8_t*)begin();
 		size_t const len = (uint8_t*)end() - p;
 		size_t loop = len;
-		size_t count = s_cleanseCounter;
 		while (loop--)
 		{
 			*(p++) = (uint8_t)count;
@@ -88,7 +94,10 @@ public:
 		p = (uint8_t*)memchr((uint8_t*)begin(), (uint8_t)count, len);
 		if (p)
 			count += (63 + (size_t)p);
-		s_cleanseCounter = (uint8_t)count;
+		{
+			std::lock_guard<std::mutex> l(x_cleanseCounter);
+			s_cleanseCounter = (uint8_t)count;
+		}
 		memset((uint8_t*)begin(), 0, len);
 	}
 
