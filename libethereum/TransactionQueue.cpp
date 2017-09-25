@@ -60,6 +60,7 @@ ImportResult TransactionQueue::import(bytesConstRef _transactionRLP, IfDropped _
 	try
 	{
 		Transaction t = Transaction(_transactionRLP, CheckTransaction::Everything);
+        t.setImportTime(utcTime());
 		return import(t, _ik);
 	}
 	catch (Exception const&)
@@ -253,6 +254,15 @@ unsigned TransactionQueue::waiting(Address const& _a) const
 	return ret;
 }
 
+Transactions TransactionQueue::allTransactions() const {
+    ReadGuard l(m_lock);
+    Transactions ret;
+    for (auto t = m_current.begin(); t != m_current.end(); ++t) {
+        ret.push_back(t->transaction);
+    }
+    return ret;
+}
+
 void TransactionQueue::setFuture(h256 const& _txHash)
 {
 	WriteGuard l(m_lock);
@@ -393,6 +403,7 @@ void TransactionQueue::verifierBody()
 		try
 		{
 			Transaction t(work.transaction, CheckTransaction::Cheap); //Signature will be checked later
+            t.setImportTime(utcTime());
 			ImportResult ir = import(t);
 			m_onImport(ir, t.sha3(), work.nodeId);
 		}

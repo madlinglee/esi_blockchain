@@ -263,6 +263,12 @@ bool EthereumPeer::interpret(unsigned _id, RLP const& _r)
 		m_observer->onPeerTransactions(dynamic_pointer_cast<EthereumPeer>(dynamic_pointer_cast<EthereumPeer>(shared_from_this())), _r);
 		break;
 	}
+    case PBFTPacket:
+    {
+        EthereumHost* host = static_cast<EthereumHost*>(Capability::hostCapability());
+        host->insertRecvMsgs(_r[0].data().toBytes());
+        break;
+    }
 	case GetBlockHeadersPacket:
 	{
 		/// Packet layout:

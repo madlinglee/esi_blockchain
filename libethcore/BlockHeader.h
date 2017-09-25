@@ -97,6 +97,7 @@ class BlockHeader
 {
 	friend class BlockChain;
 public:
+    static u256 maxGas;
 	static const unsigned BasicFields = 13;
 
 	BlockHeader();

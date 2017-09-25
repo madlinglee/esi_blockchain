@@ -565,14 +565,15 @@ void Client::startSealing()
 {
 	if (m_wouldSeal == true)
 		return;
-	clog(ClientNote) << "Mining Beneficiary: " << author();
-	if (author())
+	//clog(ClientNote) << "Mining Beneficiary: " << author();
+	//if (author())
 	{
 		m_wouldSeal = true;
 		m_signalled.notify_all();
 	}
-	else
+	/*else
 		clog(ClientNote) << "You need to set an author in order to seal!";
+    */
 }
 
 void Client::rejigSealing()

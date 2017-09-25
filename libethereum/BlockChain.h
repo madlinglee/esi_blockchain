@@ -114,6 +114,9 @@ public:
 	BlockChain(ChainParams const& _p, boost::filesystem::path const& _path, WithExisting _we = WithExisting::Trust, ProgressCallback const& _pc = ProgressCallback());
 	~BlockChain();
 
+    void addBlockCache(Block block, u256 td) const;
+    std::pair<Block, u256> getBlockCache(const h256& hash) const;
+
 	/// Reopen everything.
 	void reopen(WithExisting _we = WithExisting::Trust, ProgressCallback const& _pc = ProgressCallback()) { reopen(m_params, _we, _pc); }
 	void reopen(ChainParams const& _p, WithExisting _we = WithExisting::Trust, ProgressCallback const& _pc = ProgressCallback());
@@ -234,6 +237,9 @@ public:
 
 	/// Get the hash of the genesis block. Thread-safe.
 	h256 genesisHash() const { return m_genesisHash; }
+
+    void verifyFromPBFT(const bytes& block, const OverlayDB& db) const;
+    ImportRoute importFromPBFT(bytes const& _block, OverlayDB const& _stateDB, bool _mustBeNew = true);
 
 	/// Get all blocks not allowed as uncles given a parent (i.e. featured as uncles/main in parent, parent + 1, ... parent + @a _generations).
 	/// @returns set including the header-hash of every parent (including @a _parent) up to and including generation + @a _generations
@@ -420,7 +426,10 @@ private:
 	std::function<void(Exception&)> m_onBad;									///< Called if we have a block that doesn't verify.
 	std::function<void(BlockHeader const&)> m_onBlockImport;										///< Called if we have imported a new block into the db
 
-	boost::filesystem::path m_dbPath;
+    mutable SharedMutex x_blockCache;
+    mutable std::map<h256, std::pair<Block, u256>> m_blockCache;
+	
+    boost::filesystem::path m_dbPath;
 
 	friend std::ostream& operator<<(std::ostream& _out, BlockChain const& _bc);
 };

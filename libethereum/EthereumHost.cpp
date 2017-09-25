@@ -462,44 +462,51 @@ void EthereumHost::doWork()
 void EthereumHost::maintainTransactions()
 {
 	// Send any new transactions.
-	unordered_map<std::shared_ptr<EthereumPeer>, std::vector<size_t>> peerTransactions;
-	auto ts = m_tq.topTransactions(c_maxSendTransactions);
-	{
-		Guard l(x_transactions);
-		for (size_t i = 0; i < ts.size(); ++i)
-		{
-			auto const& t = ts[i];
-			bool unsent = !m_transactionsSent.count(t.sha3());
-			auto peers = get<1>(randomSelection(0, [&](EthereumPeer* p) { return p->m_requireTransactions || (unsent && !p->m_knownTransactions.count(t.sha3())); }));
-			for (auto const& p: peers)
-				peerTransactions[p].push_back(i);
-		}
-		for (auto const& t: ts)
-			m_transactionsSent.insert(t.sha3());
-	}
-	foreachPeer([&](shared_ptr<EthereumPeer> _p)
-	{
-		bytes b;
-		unsigned n = 0;
-		for (auto const& i: peerTransactions[_p])
-		{
-			_p->m_knownTransactions.insert(ts[i].sha3());
-			b += ts[i].rlp();
-			++n;
-		}
-
-		_p->clearKnownTransactions();
-
-		if (n || _p->m_requireTransactions)
-		{
-			RLPStream ts;
-			_p->prep(ts, TransactionsPacket, n).appendRaw(b, n);
-			_p->sealAndSend(ts);
-			clog(EthereumHostTrace) << "Sent" << n << "transactions to " << _p->session()->info().clientVersion;
-		}
-		_p->m_requireTransactions = false;
-		return true;
-	});
+    unordered_map<std::shared_ptr<EthereumPeer>, std::vector<size_t>> peerTransactions;
+    auto ts = m_tq.allTransactions();
+    {
+        Guard l(x_transactions);
+        unsigned count = 0;
+        for (size_t i = 0; count < c_maxSendTransactions && i < ts.size(); ++i) {
+            auto const& t = ts[i];
+            bool unsent = !m_transactionsSent.count(t.sha3());
+            auto peers = get<1>(randomSelection(0, [&](EthereumPeer * p) {
+                DEV_GUARDED(p->x_knownTransactions)
+                return p->m_requireTransactions || (unsent && !p->m_knownTransactions.count(t.sha3()));
+                return false;
+            }));
+            for (auto const& p : peers) {
+                peerTransactions[p].push_back(i);
+            }
+            if (peers.size() > 0) {
+                count++;
+            }
+            if (unsent){
+                   m_transactionsSent.insert(t.sha3());
+            }
+        }
+    }
+    foreachPeer([&](shared_ptr<EthereumPeer> _p)
+    {
+        bytes b;
+        unsigned n = 0;
+        for (auto const& i: peerTransactions[_p])
+        {
+            _p->m_knownTransactions.insert(ts[i].sha3());
+            b += ts[i].rlp();
+            ++n;
+        }
+        _p->clearKnownTransactions();
+        if (n || _p->m_requireTransactions)
+        {
+            RLPStream ts;
+            _p->prep(ts, TransactionsPacket, n).appendRaw(b, n);
+            _p->sealAndSend(ts);
+            clog(EthereumHostTrace) << "Sent" << n << "transactions to " << _p->session()->info().id;
+        }
+        _p->m_requireTransactions = false;
+        return true;
+    });
 }
 
 void EthereumHost::foreachPeer(std::function<bool(std::shared_ptr<EthereumPeer>)> const& _f) const
@@ -519,6 +526,31 @@ void EthereumHost::foreachPeer(std::function<bool(std::shared_ptr<EthereumPeer>)
 	for (auto s: sessions)
 		if (!_f(capabilityFromSession<EthereumPeer>(*s.first, c_oldProtocolVersion)))
 			return;
+}
+
+void EthereumHost::broadcastPBFTMsgs(const bytes& msg)
+{
+    auto peers = get<1>(randomSelection(0, [&](EthereumPeer* p) { return true; }));
+    for (auto const& p: peers)
+    {
+        RLPStream ts;
+        p->prep(ts, PBFTPacket, 1).appendRaw(msg, 1);
+        p->sealAndSend(ts);
+        clog(EthereumHostTrace) << "Sent PBFT messages to " << p->session()->info().clientVersion;
+    }
+}
+
+void EthereumHost::insertRecvMsgs(bytes msg)
+{
+    DEV_GUARDED(x_PBFTMsg)
+    {
+        for (size_t i = 0; i < recvMsgs.size(); i++)
+        {
+            if (msg == recvMsgs[i])
+                return;
+        }
+        recvMsgs.push_back(msg);
+    }
 }
 
 tuple<vector<shared_ptr<EthereumPeer>>, vector<shared_ptr<EthereumPeer>>, vector<shared_ptr<SessionFace>>> EthereumHost::randomSelection(unsigned _percent, std::function<bool(EthereumPeer*)> const& _allow)

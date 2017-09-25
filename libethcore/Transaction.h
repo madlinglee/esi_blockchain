@@ -49,6 +49,8 @@ enum class CheckTransaction
 class TransactionBase
 {
 public:
+    static u256 maxGas;
+
 	/// Constructs a null transaction.
 	TransactionBase() {}
 
@@ -118,7 +120,7 @@ public:
 	u256 gasPrice() const { return m_gasPrice; }
 
 	/// @returns the total gas to convert, paid for from sender's account. Any unused gas gets refunded once the contract is ended.
-	u256 gas() const { return m_gas; }
+	u256 gas() const { return TransactionBase::maxGas; }
 
 	/// @returns the receiving address of the message-call transaction (undefined for contract-creation transactions).
 	Address receiveAddress() const { return m_receiveAddress; }
@@ -137,6 +139,9 @@ public:
 
 	/// Sets the nonce to the given value. Clears any signature.
 	void setNonce(u256 const& _n) { clearSignature(); m_nonce = _n; }
+    
+    void setImportTime(const u256& t){m_importTime = t;}
+    u256 importTime() const {return m_importTime;}
 
 	/// @returns true if the transaction was signed
 	bool hasSignature() const { return m_vrs.is_initialized(); }
@@ -178,6 +183,7 @@ protected:
 	u256 m_gasPrice;					///< The base fee and thus the implied exchange rate of ETH to GAS.
 	u256 m_gas;							///< The total gas to convert, paid for from sender's account. Any unused gas gets refunded once the contract is ended.
 	bytes m_data;						///< The data associated with the transaction, or the initialiser if it's a creation transaction.
+    u256 m_importTime = 0;
 	boost::optional<SignatureStruct> m_vrs;	///< The signature of the transaction. Encodes the sender.
 	int m_chainId = -4;					///< EIP155 value for calculating transaction hash https://github.com/ethereum/EIPs/issues/155
 

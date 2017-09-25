@@ -72,6 +72,7 @@ enum SubprotocolPacketType: byte
 	NodeDataPacket = 0x0e,
 	GetReceiptsPacket = 0x0f,
 	ReceiptsPacket = 0x10,
+    PBFTPacket = 0x11,
 
 	PacketCount
 };

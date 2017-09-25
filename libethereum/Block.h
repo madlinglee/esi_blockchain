@@ -234,6 +234,7 @@ public:
 
 	/// Returns back to a pristine state after having done a playback.
 	void cleanup();
+    void commitAll();
 
 	/// Sets m_currentBlock to a clean state, (i.e. no change from m_previousBlock) and
 	/// optionally modifies the timestamp.

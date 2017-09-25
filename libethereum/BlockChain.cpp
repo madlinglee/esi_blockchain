@@ -688,17 +688,36 @@ ImportRoute BlockChain::import(VerifiedBlockRef const& _block, OverlayDB const& 
 
 	BlockReceipts br;
 	u256 td;
+    std::shared_ptr<Block> tb(new Block(*this, _db));
 	try
 	{
 		// Check transactions are valid and that they result in a state equivalent to our state_root.
 		// Get total difficulty increase and update state, checking it.
-		Block s(*this, _db);
+		/*Block s(*this, _db);
 		auto tdIncrease = s.enactOn(_block, *this);
 
 		for (unsigned i = 0; i < s.pending().size(); ++i)
 			br.receipts.push_back(s.receipt(i));
 
 		s.cleanup();
+        */
+        u256 tdIncrease = 0;
+        auto pair = getBlockCache(_block.info.hash());
+        if(pair.second !=0 )
+        {
+            *tb = pair.first;
+            tdIncrease = pair.second;
+            clog(BlockChainNote) << "Importing from block cache.";
+        }
+        else
+        {
+            tdIncrease = tb->enactOn(_block, *this);
+            //addBlockCache(*tb, tdIncrease);
+            clog(BlockChainNote) << "Importing from new executed block.";
+        }
+		for (unsigned i = 0; i < tb->pending().size(); ++i)
+			br.receipts.push_back(tb->receipt(i));
+        tb->commitAll();
 
 		td = pd.totalDifficulty + tdIncrease;
 
@@ -1455,6 +1474,43 @@ Block BlockChain::genesisBlock(OverlayDB const& _db) const
 	return ret;
 }
 
+void BlockChain::verifyFromPBFT(const bytes& block, const OverlayDB& db) const
+{
+    VerifiedBlockRef vb = verifyBlock(&block, m_onBad, ImportRequirements::OutOfOrderChecks);
+    auto pair = getBlockCache(vb.info.hash());
+    if(pair.second == 0)
+    {
+        Block b(*this, db);
+        u256 td = b.enactOn(vb, *this);
+        clog(BlockChainNote) << "Caching new executed block.";
+        addBlockCache(b, td);
+    }
+    else
+    {}
+}
+
+ImportRoute BlockChain::importFromPBFT(bytes const& _block, OverlayDB const& _db, bool _mustBeNew)
+{
+    // VERIFY: populates from the block and checks the block is internally coherent.
+    VerifiedBlockRef block;
+#if ETH_CATCH
+     try
+#endif
+    {
+        block = verifyBlock(&_block, m_onBad, ImportRequirements::TransactionBasic);
+    }
+#if ETH_CATCH
+    catch (Exception& ex)
+    {
+        //clog(BlockChainNote) << "   Malformed block: " << diagnostic_information(ex);
+        ex << errinfo_phase(2);
+        ex << errinfo_now(time(0));
+        throw;
+    }
+#endif
+    return import(block, _db, _mustBeNew);
+}
+
 VerifiedBlockRef BlockChain::verifyBlock(bytesConstRef _block, std::function<void(Exception&)> const& _onBad, ImportRequirements::value _ir) const
 {
 	VerifiedBlockRef res;
@@ -1557,4 +1613,25 @@ unsigned BlockChain::chainStartBlockNumber() const
 	std::string value;
 	m_extrasDB->Get(m_readOptions, c_sliceChainStart, &value);
 	return value.empty() ? 0 : number(h256(value, h256::FromBinary));
+}
+
+void BlockChain::addBlockCache(Block block, u256 td) const
+{
+    DEV_WRITE_GUARDED(x_blockCache)
+    {
+        if(m_blockCache.size()>10)
+            m_blockCache.clear();
+        m_blockCache.insert(std::make_pair(block.info().hash(), std::make_pair(block, td)));
+    }
+}
+
+std::pair<Block, u256> BlockChain::getBlockCache(const h256& hash) const
+{
+    DEV_READ_GUARDED(x_blockCache)
+    {
+        auto it = m_blockCache.find(hash);
+        if(it != m_blockCache.end())
+            return it->second;
+    }
+    return std::make_pair(Block(0), 0);
 }

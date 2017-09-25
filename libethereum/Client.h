@@ -262,10 +262,10 @@ protected:
 	void syncBlockQueue();
 
 	/// Signal handler for when the block queue needs processing.
-	void syncTransactionQueue();
+	virtual void syncTransactionQueue();
 
 	/// Magically called when m_tq needs syncing. Be nice and don't block.
-	void onTransactionQueueReady() { m_syncTransactionQueue = true; m_signalled.notify_all(); }
+	virtual void onTransactionQueueReady() { m_syncTransactionQueue = true; m_signalled.notify_all(); }
 
 	/// Magically called when m_bq needs syncing. Be nice and don't block.
 	void onBlockQueueReady() { m_syncBlockQueue = true; m_signalled.notify_all(); }

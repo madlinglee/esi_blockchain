@@ -32,6 +32,8 @@ using namespace std;
 using namespace dev;
 using namespace dev::eth;
 
+u256 BlockHeader::maxGas = 100000000000;
+
 BlockHeader::BlockHeader()
 {
 }
@@ -204,7 +206,7 @@ void BlockHeader::populateFromParent(BlockHeader const& _parent)
 	m_stateRoot = _parent.stateRoot();
 	m_number = _parent.m_number + 1;
 	m_parentHash = _parent.m_hash;
-	m_gasLimit = _parent.m_gasLimit;
+	m_gasLimit = BlockHeader::maxGas;
 	m_difficulty = 1;
 	m_gasUsed = 0;
 }

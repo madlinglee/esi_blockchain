@@ -81,6 +81,8 @@ public:
 	/// @returns Pending transaction count.
 	unsigned waiting(Address const& _a) const;
 
+    Transactions allTransactions() const;
+
 	/// Get top transactions from the queue. Returned transactions are not removed from the queue automatically.
 	/// @param _limit Max number of transactions to return.
 	/// @param _avoid Transactions to avoid returning.
@@ -172,7 +174,8 @@ private:
 		{
 			u256 const& height1 = _first.transaction.nonce() - queue.m_currentByAddressAndNonce[_first.transaction.sender()].begin()->first;
 			u256 const& height2 = _second.transaction.nonce() - queue.m_currentByAddressAndNonce[_second.transaction.sender()].begin()->first;
-			return height1 < height2 || (height1 == height2 && _first.transaction.gasPrice() > _second.transaction.gasPrice());
+			//return height1 < height2 || (height1 == height2 && _first.transaction.gasPrice() > _second.transaction.gasPrice());
+            return height1 < height2 || (height1 == height2 && _first.transaction.importTime() <= _second.transaction.importTime());
 		}
 	};
 

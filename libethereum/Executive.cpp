@@ -213,7 +213,7 @@ void Executive::initialize(Transaction const& _transaction)
 		}
 
 		// Avoid unaffordable transactions.
-		bigint gasCost = (bigint)m_t.gas() * m_t.gasPrice();
+		/*bigint gasCost = (bigint)m_t.gas() * m_t.gasPrice();
 		bigint totalCost = m_t.value() + gasCost;
 		if (m_s.balance(m_t.sender()) < totalCost)
 		{
@@ -222,6 +222,10 @@ void Executive::initialize(Transaction const& _transaction)
 			BOOST_THROW_EXCEPTION(NotEnoughCash() << RequirementError(totalCost, (bigint)m_s.balance(m_t.sender())) << errinfo_comment(m_t.sender().hex()));
 		}
 		m_gasCost = (u256)gasCost;  // Convert back to 256-bit, safe now.
+        */
+		bigint gasCost = (bigint)m_t.gas() * m_t.gasPrice();
+		m_gasCost = (u256)gasCost;  // Convert back to 256-bit, safe now.
+        //m_gasCost = (bigint)m_t.gas() * m_t.gasPrice();
 	}
 }
 
@@ -487,7 +491,7 @@ bool Executive::finalize()
 
 	if (m_t)
 	{
-		m_s.addBalance(m_t.sender(), m_gas * m_t.gasPrice());
+		//m_s.addBalance(m_t.sender(), m_gas * m_t.gasPrice());
 
 		u256 feesEarned = (m_t.gas() - m_gas) * m_t.gasPrice();
 		m_s.addBalance(m_envInfo.author(), feesEarned);

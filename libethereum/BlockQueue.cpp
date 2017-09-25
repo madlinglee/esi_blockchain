@@ -215,7 +215,7 @@ ImportResult BlockQueue::import(bytesConstRef _block, bool _isOurs)
 	DEV_INVARIANT_CHECK;
 
 	// Check it's not in the future
-	if (bi.timestamp() > utcTime() && !_isOurs)
+	if (bi.timestamp() > utcTime() && !_isOurs && !m_bc->chainParams().allowFutureBlocks)
 	{
 		m_future.insert(static_cast<time_t>(bi.timestamp()), h, _block.toBytes());
 		char buf[24];

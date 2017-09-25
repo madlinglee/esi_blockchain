@@ -43,7 +43,7 @@ namespace fs = boost::filesystem;
 
 #define ETH_TIMED_ENACTMENTS 0
 
-static const unsigned c_maxSyncTransactions = 1024;
+static const unsigned c_maxSyncTransactions = 100;
 
 const char* BlockSafeExceptions::name() { return EthViolet "⚙" EthBlue " ℹ"; }
 const char* BlockDetail::name() { return EthViolet "⚙" EthWhite " ◌"; }
@@ -627,9 +627,9 @@ u256 Block::enact(VerifiedBlockRef const& _block, BlockChain const& _bc)
 		}
 
 	assert(_bc.sealEngine());
-	DEV_TIMED_ABOVE("applyRewards", 500)
+	/*DEV_TIMED_ABOVE("applyRewards", 500)
 		applyRewards(rewarded, _bc.sealEngine()->blockReward(m_currentBlock.number()));
-
+    */
 	// Commit all cached state changes to the state trie.
 	bool removeEmptyAccounts = m_currentBlock.number() >= _bc.chainParams().EIP158ForkBlock; // TODO: use EVMSchedule
 	DEV_TIMED_ABOVE("commit", 500)
@@ -677,13 +677,15 @@ ExecutionResult Block::execute(LastBlockHashesFace const& _lh, Transaction const
 
 void Block::applyRewards(vector<BlockHeader> const& _uncleBlockHeaders, u256 const& _blockReward)
 {
-	u256 r = _blockReward;
+    return ;
+	/*u256 r = _blockReward;
 	for (auto const& i: _uncleBlockHeaders)
 	{
 		m_state.addBalance(i.author(), _blockReward * (8 + i.number() - m_currentBlock.number()) / 8);
 		r += _blockReward / 32;
 	}
 	m_state.addBalance(m_currentBlock.author(), r);
+    */
 }
 
 void Block::performIrregularModifications()
@@ -798,7 +800,7 @@ void Block::commitToSeal(BlockChain const& _bc, bytes const& _extraData)
 
 	// Apply rewards last of all.
 	assert(_bc.sealEngine());
-	applyRewards(uncleBlockHeaders, _bc.sealEngine()->blockReward(m_currentBlock.number()));
+	//applyRewards(uncleBlockHeaders, _bc.sealEngine()->blockReward(m_currentBlock.number()));
 
 	// Commit any and all changes to the trie that are in the cache, then update the state root accordingly.
 	bool removeEmptyAccounts = m_currentBlock.number() >= _bc.chainParams().EIP158ForkBlock; // TODO: use EVMSchedule
@@ -910,4 +912,26 @@ void Block::cleanup()
 	clog(StateTrace) << "finalising enactment. current -> previous, hash is" << m_previousBlock.hash();
 
 	resetCurrent();
+}
+
+void Block::commitAll()
+{
+    // Commit the new trie to disk.
+    if (isChannelVisible<StateTrace>()) // Avoid calling toHex if not needed
+        clog(StateTrace) << "Committing to disk: stateRoot" << m_currentBlock.stateRoot() << "=" << rootHash() << "=" << toHex(asBytes(db().lookup(rootHash())));
+    try
+    {
+        EnforceRefs er(db(), true);
+        rootHash();
+    }
+    catch (BadRoot const&)
+    {
+        clog(StateChat) << "Trie corrupt! :-(";
+        throw;
+    }
+    m_state.db().commit();  // TODO: State API for this?
+    if (isChannelVisible<StateTrace>()) // Avoid calling toHex if not needed
+        clog(StateTrace) << "Committed: stateRoot" << m_currentBlock.stateRoot() << "=" << rootHash() << "=" << toHex(asBytes(db().lookup(rootHash())));
+
+    clog(StateTrace) << "finalising enactment. current -> previous, hash is" << m_previousBlock.hash();
 }

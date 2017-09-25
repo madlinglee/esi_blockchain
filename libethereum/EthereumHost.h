@@ -93,6 +93,25 @@ public:
 	static unsigned const c_oldProtocolVersion;
 	void foreachPeer(std::function<bool(std::shared_ptr<EthereumPeer>)> const& _f) const;
 
+    void broadcastPBFTMsgs(const bytes& msg);
+    void insertRecvMsgs(bytes msg);
+    std::vector<bytes> getRecvMsgs()
+    {
+        std::vector<bytes> retMsgs;
+        DEV_GUARDED(x_PBFTMsg)
+        {
+            retMsgs = recvMsgs;
+            delRecvMsgs();
+        }
+        return retMsgs;
+    }
+    void delRecvMsgs()
+    {
+        if (recvMsgs.size())
+            recvMsgs.clear();
+        return;
+    }
+
 protected:
 	std::shared_ptr<p2p::Capability> newPeerCapability(std::shared_ptr<p2p::SessionFace> const& _s, unsigned _idOffset, p2p::CapDesc const& _cap, uint16_t _capID) override;
 
@@ -139,6 +158,9 @@ private:
 
 	std::shared_ptr<EthereumHostDataFace> m_hostData;
 	std::shared_ptr<EthereumPeerObserverFace> m_peerObserver;
+
+    mutable Mutex x_PBFTMsg;
+    std::vector<bytes> recvMsgs;
 };
 
 }
