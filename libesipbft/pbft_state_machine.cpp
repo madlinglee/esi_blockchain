@@ -7,7 +7,7 @@
 #include <iostream>
 #include "pbft_state_machine.h"
 #include "libdevcore/RLP.h"
-#include "libdevcore/Hash.h"
+#include "libdevcrypto/Hash.h"
 using namespace dev;
 using namespace std;
 #define printf printf("%02x ",key_pair_.pub()[0]); printf

@@ -11,13 +11,13 @@ void KeyWrapped::createKeyFromSeed(const std::string& seed)
     dev::Secret sec = dev::eth::KeyManager::brain(seed);
     dev::KeyPair keyPair(sec);
     pub_key_=keyPair.pub();
-    sec_key_=keyPair.sec();
+    sec_key_=keyPair.secret();
 }
 void KeyWrapped::createKeyFromSec(const SecKey& sec)
 {
     dev::KeyPair keyPair(sec);
     pub_key_=keyPair.pub();
-    sec_key_=keyPair.sec();
+    sec_key_=keyPair.secret();
 }
 const SecKey& KeyWrapped::sec()
 {

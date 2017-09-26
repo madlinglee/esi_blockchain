@@ -13,7 +13,7 @@
 #define UTILS_H_
 #include <string>
 #include "libdevcore/RLP.h"
-#include "libdevcore/Hash.h"
+#include "libdevcrypto/Hash.h"
 #include "pbft_common.h"
 using namespace dev;
 /**

@@ -14,7 +14,7 @@
 
 #include <libethereum/EthereumHost.h>
 #include <libethereum/Client.h>
-#include "pbft_interface.h"
+#include <libesipbft/pbft_interface.h>
 
 using namespace dev;
 using namespace dev::eth;
