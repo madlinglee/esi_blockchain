@@ -10,7 +10,7 @@
  * @date 2017年06月28日
  */
 #pragma once
-#include "validator_set.h"
+#include <libesipbft/validator_set.h>
 
 /**
  * @brief 获取验证者

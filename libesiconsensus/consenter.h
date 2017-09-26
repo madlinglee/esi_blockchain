@@ -12,11 +12,11 @@
 #pragma once
 
 #include <iostream>
-#include "../libesipbft/utils.h"
-#include "../libesipbftclient/pbft_client.h"
-#include "validator_set.h"
-#include "msg_collector.h"
-#include "pbft_state_machine.h"
+#include <libesipbftseal/pbft_client.h>
+#include <libesipbft/utils.h>
+#include <libesipbft/validator_set.h>
+#include <libesipbft/msg_collector.h>
+#include <libesipbft/pbft_state_machine.h>
 #include "common.h"
 
 using namespace pbft;
