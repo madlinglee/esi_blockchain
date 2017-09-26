@@ -139,6 +139,7 @@ if (EVMJIT)
 endif()
 
 add_subdirectory(eth)
+add_subdirectory(esi)
 
 if (TOOLS)
     add_subdirectory(ethkey)

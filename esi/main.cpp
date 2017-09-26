@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <unistd.h>
+#include <boost/filesystem.hpp>
 #include <libdevcore/FileSystem.h>
 #include <libdevcore/Common.h>
 #include <libdevcore/CommonIO.h>
@@ -19,13 +20,14 @@
 #include <libweb3jsonrpc/EthFace.h>
 #include <libweb3jsonrpc/Eth.h>
 #include <jsonrpccpp/server/connectors/httpserver.h>
-#include "../libesirpcserver/rpc_seal_server.h"
-#include "../libesirpcserver/rpc_net_server.h"
-#include "../libesirpcserver/rpc_core_server.h"
-#include "../libesipbftclient/pbft_client.h"
-#include "../libesiconsensus/consenter.h"
+//#include <libesirpcserver/rpc_seal_server.h>
+//#include <libesirpcserver/rpc_net_server.h>
+//#include <libesirpcserver/rpc_core_server.h>
+#include <libesipbftseal/pbft_client.h>
+#include <libesiconsensus/consenter.h>
 #include "genesis_info.h"
 
+namespace fs = boost::filesystem;
 using namespace std;
 using namespace dev;
 using namespace dev::eth;
@@ -97,7 +99,7 @@ int main(int argc, char** argv)
     //构造指定json字符串的链参数
     ChainParams cp(genesis_info_ljf);
     //ChainParams cp(genesisInfo(eth::Network::Frontier), genesisStateRoot(eth::Network::Frontier));
-    cp.otherParams["allowFutureBlocks"]="true";
+    cp.allowFutureBlocks = true;
 
     WithExisting we = WithExisting::Trust;
 
@@ -108,13 +110,13 @@ int main(int argc, char** argv)
     net_prefs.discovery = false;
     net_prefs.pin = true;
 
-    auto hosts_state = contents(getDataDir() + "/network.rlp");
+    auto hosts_state = contents(getDataDir()/fs::path( "network.rlp"));
 
     //构造Host
     Host host("TESTv1.0", net_prefs, &hosts_state);
 
     //构造client
-    unique_ptr<PBFTClient> client(new PBFTClient(cp,(int)cp.u256Param("networkID"), &host, shared_ptr<GasPricer>(), getDataDir(), we));
+    unique_ptr<PBFTClient> client(new PBFTClient(cp, (int)cp.networkID, &host, shared_ptr<GasPricer>(), getDataDir(), we));
 
     //设置区块地址
     //client->setAuthor(toAddress(secret_ljf));
@@ -143,7 +145,7 @@ int main(int argc, char** argv)
         }
         auto netData = host.saveNetwork();
         if (!netData.empty())
-            writeFile(getDataDir() + "/network.rlp", netData);
+            writeFile(getDataDir()/fs::path("/network.rlp"), netData);
     }
 
     //共识
