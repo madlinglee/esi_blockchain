@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <boost/filesystem/path.hpp>
 #include <libethereum/EthereumHost.h>
 #include <libethereum/Client.h>
 #include <libesipbft/pbft_interface.h>
@@ -25,13 +26,13 @@ class PBFTClient : public Client, public PBFTInterface
 {
 public:
     PBFTClient(
-        ChainParams const& params,
+        const ChainParams& params,
         int network_id,
         p2p::Host* host,
         std::shared_ptr<GasPricer> gp,
-        std::string const& db_path = std::string(),
+        const boost::filesystem::path& db_path = std::string(),
         WithExisting we = WithExisting::Trust,
-        TransactionQueue::Limits const& l = TransactionQueue::Limits{102400, 102400}
+        const TransactionQueue::Limits& l = TransactionQueue::Limits{102400, 102400}
     );
 
     /**

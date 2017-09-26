@@ -13,13 +13,13 @@ using namespace dev::eth;
 using namespace pbft;
 
 PBFTClient::PBFTClient(
-        ChainParams const& params,
+        const ChainParams& params,
         int network_id,
         p2p::Host* host,
         std::shared_ptr<GasPricer> gp,
-        std::string const& db_path,
+        const boost::filesystem::path& db_path,
         WithExisting we,
-        TransactionQueue::Limits const& l
+        const TransactionQueue::Limits& l
     ) : Client(params, network_id, host, gp, db_path, we, l)
 {}
 
