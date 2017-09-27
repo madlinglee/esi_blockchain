@@ -19,6 +19,8 @@
 #include <libweb3jsonrpc/AccountHolder.h>
 #include <libweb3jsonrpc/EthFace.h>
 #include <libweb3jsonrpc/Eth.h>
+#include <libweb3jsonrpc/PersonalFace.h>
+#include <libweb3jsonrpc/Personal.h>
 #include <jsonrpccpp/server/connectors/httpserver.h>
 //#include <libesirpcserver/rpc_seal_server.h>
 //#include <libesirpcserver/rpc_net_server.h>
@@ -45,6 +47,7 @@ void version()
 
 int main(int argc, char** argv)
 {
+    bool test_mode = false;
     string consensus_id;
     string peer_ips_ports[3];
     string peer_enodes[3];
@@ -74,22 +77,29 @@ int main(int argc, char** argv)
                 peer_enodes[1] = argv[++i];
                 peer_enodes[2] = argv[++i];
             }
+            else if(arg == "--test")
+            {
+                test_mode = true;
+            }
             else
             {
                 cout << "搓搓搓，可以--h查询~_~" << endl;
                 return -1;
             }
         }
-        if(consensus_id.empty())
+        if(!test_mode)
         {
-            cout<<"请输入本节点标识(e.g.--c 71)"<<endl;
-            return -1;
-        }
-        if((peer_ips_ports[0]=="" && peer_enodes[0]!="")
-            || (peer_ips_ports[0]!="" && peer_enodes[0]==""))
-        {
-            cout<<"请同时指定--p与--e"<<endl;
-            return -1;
+            if(consensus_id.empty())
+            {
+                cout<<"请输入本节点标识(e.g.--c 71)"<<endl;
+                return -1;
+            }
+            if((peer_ips_ports[0]=="" && peer_enodes[0]!="")
+                || (peer_ips_ports[0]!="" && peer_enodes[0]==""))
+            {
+                cout<<"请同时指定--p与--e"<<endl;
+                return -1;
+            }
         }
     }
     g_logVerbosity = 8;
@@ -100,6 +110,8 @@ int main(int argc, char** argv)
     ChainParams cp(genesis_info_ljf);
     //ChainParams cp(genesisInfo(eth::Network::Frontier), genesisStateRoot(eth::Network::Frontier));
     cp.allowFutureBlocks = true;
+    if(test_mode)
+        cp.chainID = -1;
 
     WithExisting we = WithExisting::Trust;
 
@@ -117,7 +129,6 @@ int main(int argc, char** argv)
 
     //构造client
     unique_ptr<PBFTClient> client(new PBFTClient(cp, (int)cp.networkID, &host, shared_ptr<GasPricer>(), getDataDir(), we));
-
     //设置区块地址
     //client->setAuthor(toAddress(secret_ljf));
     //cout << "@区块地址：" << client->author() << endl;
@@ -127,36 +138,8 @@ int main(int argc, char** argv)
     client->setSealOption("authorities", rlpList(toAddress(secret_ljf)));
     */
 
-    //开启节点
-    host.start();
-    //本节点的识别地址
-    cout << host.enode() << endl;
-    //区块链高度
-    cout << "@区块链高度：" << client->getHeight() << endl;
-
-    //client->startSealing();//单机挖矿测试
-
-    if(peer_ips_ports[0]!="")
-    {
-        for(int x=0; x<3; x++)
-        {
-            bi::tcp::endpoint endpoint = dev::p2p::Network::resolveHost(peer_ips_ports[x]);
-            host.requirePeer(NodeID(peer_enodes[x]), NodeIPEndpoint(endpoint.address(), endpoint.port(), endpoint.port()));
-        }
-        auto netData = host.saveNetwork();
-        if (!netData.empty())
-            writeFile(getDataDir()/fs::path("/network.rlp"), netData);
-    }
-
-    //共识
-    Consenter consenter(consensus_id, client.get());
-    consenter.insertValidator("72");
-    consenter.insertValidator("71");
-    consenter.insertValidator("91");
-    consenter.insertValidator("92");
-
     //RPC服务器端
-    jsonrpc::HttpServer *hs = new jsonrpc::HttpServer(8545, "", "", 4);
+    jsonrpc::HttpServer *hs = new jsonrpc::HttpServer(8548, "", "", 4);
     unique_ptr<ModularServer<>> rpc_server;
 
     KeyManager km;
@@ -178,6 +161,7 @@ int main(int argc, char** argv)
         [&](){return client.get();}, getAccountPassword, km, authenticator));
 
     EthFace* eth = new Eth(*client.get(), *ah.get());
+    PersonalFace* per = new Personal(km, *ah, *client.get());
     /* RPCCoreServerFace* cs = new RPCCoreServer(*client.get(), km, *sm.get());
     RPCSealServerFace* ss = new RPCSealServer(consenter, *sm.get());
     RPCNetServerFace* ns = new RPCNetServer(host, *sm.get());
@@ -185,21 +169,60 @@ int main(int argc, char** argv)
     rpc_server.reset(new ModularServer<EthFace, RPCSealServerFace, RPCNetServerFace,
         RPCCoreServerFace>(eth, ss, ns, cs));
     */
-    rpc_server.reset(new ModularServer<EthFace>(eth));
+    rpc_server.reset(new ModularServer<EthFace, PersonalFace>(eth, per));
     rpc_server->addConnector(hs);
     rpc_server->StartListening();
     cout << "@RPC服务器端开启监听成功。" << endl;
     string session_key;
     session_key = sm->newSession(SessionPermissions{{Privilege::Admin}});
     cout << "@会话密钥：" << session_key << endl;
-
-    //开启共识
-    while(host.peerCount() < 3)//四个节点启动再开启
-    ;
-    cout << "@开启PBFT" <<endl;
-    consenter.startPBFT();
-
-    while(true);
+    
+    //区块链高度
+    cout << "@区块链高度：" << client->getHeight() << endl;
+    if(test_mode)
+    {
+        while(1)
+        {
+            sleep(1);
+            client->testSealing();
+        }
+    }
+    else
+    {
+       //开启节点
+        host.start();
+        //本节点的识别地址
+        cout << host.enode() << endl;
+ 
+        if(peer_ips_ports[0]!="")
+        {
+            for(int x=0; x<3; x++)
+            {
+                bi::tcp::endpoint endpoint = dev::p2p::Network::resolveHost(peer_ips_ports[x]);
+                host.requirePeer(NodeID(peer_enodes[x]), 
+                NodeIPEndpoint(endpoint.address(), endpoint.port(), endpoint.port()));
+            }
+            auto netData = host.saveNetwork();
+            if (!netData.empty())
+                writeFile(getDataDir()/fs::path("/network.rlp"), netData);
+        }
+ 
+        //共识
+        Consenter consenter(consensus_id, client.get());
+        consenter.insertValidator("72");
+        consenter.insertValidator("71");
+        consenter.insertValidator("91");
+        consenter.insertValidator("92");
+ 
+ 
+        //开启共识
+        while(host.peerCount() < 3)//四个节点启动再开启
+                ;
+        cout << "@开启PBFT" <<endl;
+        consenter.startPBFT();
+ 
+        while(true);
+    }
 
     return 0;
 }

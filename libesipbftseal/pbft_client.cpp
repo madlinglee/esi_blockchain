@@ -221,8 +221,13 @@ void PBFTClient::broadcastPBFTMsgs(const bytes& msg)
     host()->broadcastPBFTMsgs(msg);
 }
 
-void PBFTClient::startSealing()
+void PBFTClient::testSealing()
 {
+    if(bc().chainParams().chainID != -1)
+    {
+        cout << "=非测试模式..." << endl;
+        return;
+    }
     bytes b = createConsensusData();
     if(verify(b))
         commit(b);

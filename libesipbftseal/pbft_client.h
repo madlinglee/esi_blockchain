@@ -36,9 +36,15 @@ public:
     );
 
     /**
-     * @brief 创建区块并提交
+     * @brief 测试创建、验证、提交区块
      */
-    void startSealing() override;
+    void testSealing();
+    
+    /**
+     * @brief 开启密封，空实现（当前由PBFT状态机控制）
+     */
+    void startSealing() override 
+    {}
 
     /**
      * @brief 同步区块、交易等
