@@ -122,6 +122,7 @@ public:
         pbft_instance_.stop();
         Worker::stopWorking();
     }
+    Client* client() const{return static_cast<Client*>(client_ptr_);}
 private:
     //P2P网络
     PBFTClient* client_ptr_;

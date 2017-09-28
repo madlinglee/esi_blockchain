@@ -27,6 +27,7 @@
 //#include <libesirpcserver/rpc_core_server.h>
 #include <libesipbftseal/pbft_client.h>
 #include <libesiconsensus/consenter.h>
+#include <libesiwebthree/web_three.h>
 #include "genesis_info.h"
 
 namespace fs = boost::filesystem;
@@ -48,7 +49,7 @@ void version()
 int main(int argc, char** argv)
 {
     bool test_mode = false;
-    string consensus_id;
+    string consensus_id = "";
     string peer_ips_ports[3];
     string peer_enodes[3];
     if(argc==2 && ((string(argv[1])=="--help") || (string(argv[1])=="--h")))
@@ -129,14 +130,9 @@ int main(int argc, char** argv)
 
     //构造client
     unique_ptr<PBFTClient> client(new PBFTClient(cp, (int)cp.networkID, &host, shared_ptr<GasPricer>(), getDataDir(), we));
-    //设置区块地址
-    //client->setAuthor(toAddress(secret_ljf));
-    //cout << "@区块地址：" << client->author() << endl;
-    /*
-    //BasicAuthority引擎设置区块签名私钥与验证地址
-    client->setSealOption("authority", rlp(secret_ljf.makeInsecure()));
-    client->setSealOption("authorities", rlpList(toAddress(secret_ljf)));
-    */
+
+    //传递consenter、client、host
+    WebThreeConsensus wt(consensus_id, host.nodeInfo().version, client.get(), host, getDataDir());
 
     //RPC服务器端
     jsonrpc::HttpServer *hs = new jsonrpc::HttpServer(8548, "", "", 4);
@@ -162,16 +158,11 @@ int main(int argc, char** argv)
 
     EthFace* eth = new Eth(*client.get(), *ah.get());
     PersonalFace* per = new Personal(km, *ah, *client.get());
-    /* RPCCoreServerFace* cs = new RPCCoreServer(*client.get(), km, *sm.get());
-    RPCSealServerFace* ss = new RPCSealServer(consenter, *sm.get());
-    RPCNetServerFace* ns = new RPCNetServer(host, *sm.get());
-
-    rpc_server.reset(new ModularServer<EthFace, RPCSealServerFace, RPCNetServerFace,
-        RPCCoreServerFace>(eth, ss, ns, cs));
-    */
+    
     rpc_server.reset(new ModularServer<EthFace, PersonalFace>(eth, per));
     rpc_server->addConnector(hs);
     rpc_server->StartListening();
+    
     cout << "@RPC服务器端开启监听成功。" << endl;
     string session_key;
     session_key = sm->newSession(SessionPermissions{{Privilege::Admin}});
@@ -207,19 +198,17 @@ int main(int argc, char** argv)
         if (!netData.empty())
             writeFile(getDataDir()/fs::path("/network.rlp"), netData);
         
-        //共识
-        Consenter consenter(consensus_id, client.get());
-        consenter.insertValidator("72");
-        consenter.insertValidator("71");
-        consenter.insertValidator("91");
-        consenter.insertValidator("92");
+        wt.insertValidator("72");
+        wt.insertValidator("71");
+        wt.insertValidator("91");
+        wt.insertValidator("92");
  
  
         //开启共识
         while(host.peerCount() < 3)//四个节点启动再开启
                 ;
         cout << "@开启PBFT" <<endl;
-        consenter.startPBFT();
+        wt.startPBFT();
  
         while(true);
     }

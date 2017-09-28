@@ -129,6 +129,7 @@ add_subdirectory(libethashseal)
 add_subdirectory(libesipbft)
 add_subdirectory(libesipbftseal)
 add_subdirectory(libesiconsensus)
+add_subdirectory(libesiwebthree)
 
 add_subdirectory(libwhisper)
 add_subdirectory(libwebthree)
