@@ -73,10 +73,11 @@ public:
     {
          //PBFTMsg
         std::list<PBFTMsg> pbftMsgs = this->getMsgQueue();
-        for (size_t i = 0; i < pbftMsgs.size(); i++)
+     
+        while (!pbftMsgs.empty())
         {
-            PBFTMsg message = pbftMsgs.back();
-            pbftMsgs.pop_back();
+            PBFTMsg message = pbftMsgs.front();
+            pbftMsgs.pop_front();
             //构造RLPstream
             RLPStream rlpStream;
             rlpStream.appendList(2);
