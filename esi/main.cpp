@@ -21,6 +21,8 @@
 #include <libweb3jsonrpc/Eth.h>
 #include <libweb3jsonrpc/PersonalFace.h>
 #include <libweb3jsonrpc/Personal.h>
+#include <libweb3jsonrpc/NetFace.h>
+#include <libweb3jsonrpc/Net.h>
 #include <jsonrpccpp/server/connectors/httpserver.h>
 //#include <libesirpcserver/rpc_seal_server.h>
 //#include <libesirpcserver/rpc_net_server.h>
@@ -66,17 +68,13 @@ int main(int argc, char** argv)
             string arg = argv[i];
             if (arg == "--c" && i + 1 < argc)
                 consensus_id = argv[++i];
-            else if(arg == "--p" && i + 3 < argc)
+            else if(arg == "--p" && i + 1 < argc)
             {
                 peer_ips_ports[0] = argv[++i];
-                peer_ips_ports[1] = argv[++i];
-                peer_ips_ports[2] = argv[++i];
             }
-            else if(arg == "--e" && i + 3 < argc)
+            else if(arg == "--e" && i + 1 < argc)
             {
                 peer_enodes[0] = argv[++i];
-                peer_enodes[1] = argv[++i];
-                peer_enodes[2] = argv[++i];
             }
             else if(arg == "--test")
             {
@@ -126,13 +124,13 @@ int main(int argc, char** argv)
     auto hosts_state = contents(getDataDir()/fs::path( "network.rlp"));
 
     //构造Host
-    Host host("TESTv1.0", net_prefs, &hosts_state);
+    unique_ptr<Host> host(new Host("TESTv1.0", net_prefs, &hosts_state));
 
     //构造client
-    unique_ptr<PBFTClient> client(new PBFTClient(cp, (int)cp.networkID, &host, shared_ptr<GasPricer>(), getDataDir(), we));
+    unique_ptr<PBFTClient> client(new PBFTClient(cp, (int)cp.networkID, host.get(), shared_ptr<GasPricer>(), getDataDir(), we));
 
     //传递consenter、client、host
-    WebThreeConsensus wt(consensus_id, host.nodeInfo().version, client.get(), host, getDataDir());
+    WebThreeConsensus wt(consensus_id, host->nodeInfo().version, client.get(), *host.get(), getDataDir());
 
     //RPC服务器端
     jsonrpc::HttpServer *hs = new jsonrpc::HttpServer(8548, "", "", 4);
@@ -158,8 +156,9 @@ int main(int argc, char** argv)
 
     EthFace* eth = new Eth(*client.get(), *ah.get());
     PersonalFace* per = new Personal(km, *ah, *client.get());
-    
-    rpc_server.reset(new ModularServer<EthFace, PersonalFace>(eth, per));
+    NetFace* net = new Net(wt);
+
+    rpc_server.reset(new ModularServer<EthFace, PersonalFace, NetFace>(eth, per, net));
     rpc_server->addConnector(hs);
     rpc_server->StartListening();
     
@@ -181,31 +180,28 @@ int main(int argc, char** argv)
     else
     {
        //开启节点
-        host.start();
+        wt.startNetwork();
         //本节点的识别地址
-        cout << host.enode() << endl;
+        cout << wt.enode() << endl;
  
         if(peer_ips_ports[0]!="")
         {
-            for(int x=0; x<3; x++)
+            for(int x=0; x<1; x++)
             {
-                bi::tcp::endpoint endpoint = dev::p2p::Network::resolveHost(peer_ips_ports[x]);
-                host.requirePeer(NodeID(peer_enodes[x]), 
-                NodeIPEndpoint(endpoint.address(), endpoint.port(), endpoint.port()));
+                h512 e(peer_enodes[x]);
+                wt.requirePeer(e, peer_ips_ports[x]);
             }
         }
-        auto netData = host.saveNetwork();
+        auto netData = wt.saveNetwork();
         if (!netData.empty())
             writeFile(getDataDir()/fs::path("/network.rlp"), netData);
         
         wt.insertValidator("72");
         wt.insertValidator("71");
-        wt.insertValidator("91");
-        wt.insertValidator("92");
  
  
         //开启共识
-        while(host.peerCount() < 3)//四个节点启动再开启
+        while(wt.peerCount() < 1)//四个节点启动再开启
                 ;
         cout << "@开启PBFT" <<endl;
         wt.startPBFT();

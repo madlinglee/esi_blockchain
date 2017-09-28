@@ -31,7 +31,7 @@
 
 using namespace dev;
 
-class WebThreeConsensus: public Consenter, NetworkFace
+class WebThreeConsensus: public Consenter, public NetworkFace
 {
 public:
 	WebThreeConsensus(
