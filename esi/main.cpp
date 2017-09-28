@@ -202,11 +202,11 @@ int main(int argc, char** argv)
                 host.requirePeer(NodeID(peer_enodes[x]), 
                 NodeIPEndpoint(endpoint.address(), endpoint.port(), endpoint.port()));
             }
-            auto netData = host.saveNetwork();
-            if (!netData.empty())
-                writeFile(getDataDir()/fs::path("/network.rlp"), netData);
         }
- 
+        auto netData = host.saveNetwork();
+        if (!netData.empty())
+            writeFile(getDataDir()/fs::path("/network.rlp"), netData);
+        
         //共识
         Consenter consenter(consensus_id, client.get());
         consenter.insertValidator("72");
