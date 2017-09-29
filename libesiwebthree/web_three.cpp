@@ -22,16 +22,18 @@ using namespace pbft;
 
 WebThreeConsensus::WebThreeConsensus(
     const std::string& consensus_id,
-	const std::string& client_version,
-    PBFTClient* client,
-    p2p::Host& host,
-	const boost::filesystem::path& db
-):Consenter(consensus_id, client),
-	client_version_(client_version),
-	net_(host)
+    const std::string& client_version,
+    const eth::ChainParams& params,
+    const NetworkPreferences& n,
+    bytesConstRef network,
+    const boost::filesystem::path& db_path,
+    WithExisting we):
+    client_version_(client_version),
+    net_(client_version, n, network),
+    consenter_(consensus_id, params, &net_, db_path, we)
 {
-	if (db.size())
-		Defaults::setDBPath(db);
+	if (db_path.size())
+		Defaults::setDBPath(db_path);
     NoProof::init();
 }
 

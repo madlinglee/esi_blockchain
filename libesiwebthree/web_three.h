@@ -31,21 +31,20 @@
 
 using namespace dev;
 
-class WebThreeConsensus: public Consenter, public NetworkFace
+class WebThreeConsensus: public NetworkFace
 {
 public:
 	WebThreeConsensus(
-        const std::string& consensus_id,
-		const std::string& client_version,
-        PBFTClient* client,
-        p2p::Host& host,
-		const boost::filesystem::path& db
+    const std::string& consensus_id,
+    const std::string& client_version,
+    const eth::ChainParams& params,
+    const p2p::NetworkPreferences& n,
+    bytesConstRef network,
+    const boost::filesystem::path& db_path,
+    WithExisting we = WithExisting::Trust
 	);
 
 	~WebThreeConsensus();
-
-    void insertValidator(const std::string& name){Consenter::insertValidator(name);}
-    void startPBFT(){Consenter::startPBFT();}
 
 	static std::string composeClientVersion(const std::string& client);
 	std::string const& clientVersion() const { return client_version_; }
@@ -84,7 +83,7 @@ public:
 
 	p2p::NodeID id() const override { return net_.id(); }
 
-	u256 networkId() const override { return Consenter::client()->networkId(); }
+	u256 networkId() const override { return consenter_.client()->networkId(); }
 
 	std::string enode() const override { return net_.enode(); }
 
@@ -96,8 +95,13 @@ public:
 
 	bool isNetworkStarted() const override { return net_.isStarted(); }
 
+    void insertValidator(const std::string& name){consenter_.insertValidator(name);}
+
+    void startPBFT(){consenter_.startPBFT();}
+
+    Client* client(){return consenter_.client();}
 private:
 	std::string client_version_;
-
-	p2p::Host& net_;		
+	p2p::Host net_;
+    Consenter consenter_;
 };

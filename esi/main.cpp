@@ -123,14 +123,8 @@ int main(int argc, char** argv)
 
     auto hosts_state = contents(getDataDir()/fs::path( "network.rlp"));
 
-    //构造Host
-    unique_ptr<Host> host(new Host("TESTv1.0", net_prefs, &hosts_state));
-
-    //构造client
-    unique_ptr<PBFTClient> client(new PBFTClient(cp, (int)cp.networkID, host.get(), shared_ptr<GasPricer>(), getDataDir(), we));
-
-    //传递consenter、client、host
-    WebThreeConsensus wt(consensus_id, host->nodeInfo().version, client.get(), *host.get(), getDataDir());
+    //构造Host、Client、Consenter
+    WebThreeConsensus wt(consensus_id, "ESI BLCOKCHAIN V0.1", cp, net_prefs, &hosts_state, getDataDir());
 
     //RPC服务器端
     jsonrpc::HttpServer *hs = new jsonrpc::HttpServer(8548, "", "", 4);
@@ -152,10 +146,10 @@ int main(int argc, char** argv)
     function<bool(const TransactionSkeleton&, bool)> authenticator
         = [](const TransactionSkeleton&, bool) -> bool { return true; };
     unique_ptr<SimpleAccountHolder> ah(new SimpleAccountHolder(
-        [&](){return client.get();}, getAccountPassword, km, authenticator));
+        [&](){return wt.client();}, getAccountPassword, km, authenticator));
 
-    EthFace* eth = new Eth(*client.get(), *ah.get());
-    PersonalFace* per = new Personal(km, *ah, *client.get());
+    EthFace* eth = new Eth(*wt.client(), *ah.get());
+    PersonalFace* per = new Personal(km, *ah, *wt.client());
     NetFace* net = new Net(wt);
 
     rpc_server.reset(new ModularServer<EthFace, PersonalFace, NetFace>(eth, per, net));
@@ -167,14 +161,15 @@ int main(int argc, char** argv)
     session_key = sm->newSession(SessionPermissions{{Privilege::Admin}});
     cout << "@会话密钥：" << session_key << endl;
     
+    PBFTClient* pclient = static_cast<PBFTClient*>(wt.client());
     //区块链高度
-    cout << "@区块链高度：" << client->getHeight() << endl;
+    cout << "@区块链高度：" << pclient->getHeight() << endl;
     if(test_mode)
     {
         while(1)
         {
             sleep(1);
-            client->testSealing();
+            pclient->testSealing();
         }
     }
     else

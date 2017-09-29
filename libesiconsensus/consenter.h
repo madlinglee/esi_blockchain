@@ -27,12 +27,16 @@ using namespace pbft;
 class Consenter: public MsgCollectorI, public Worker
 {
 public:
-    Consenter(const std::string& name, PBFTClient* ptr) : Worker("cons"),
-    client_name_(name)
+    Consenter(const std::string& consenter_name, const eth::ChainParams& params, p2p::Host* host, const boost::filesystem::path& db_path, WithExisting we = WithExisting::Trust) : Worker("cons"),
+    client_name_(consenter_name)
     {
-        client_ptr_ = ptr;
+        client_ptr_.reset(new PBFTClient(params, (int)params.networkID, host, std::shared_ptr<GasPricer>(), db_path, we));
         //产生自身的公钥
         pbft_instance_.resetKeyPairFromSeed(client_name_);
+    }
+    ~Consenter()
+    {
+        client_ptr_.reset();
     }
 
     /**
@@ -54,7 +58,7 @@ public:
         //注册广播消息队列
         pbft_instance_.registerMsgCollector(this);
     //注册数据验证和提交接口
-    pbft_instance_.injectPBFTI(client_ptr_);
+    pbft_instance_.injectPBFTI(client_ptr_.get());
         //启动pbft线程
         pbft_instance_.start();
         Worker::startWorking();
@@ -73,7 +77,7 @@ public:
         pbft_instance_.stop();
         Worker::stopWorking();
     }
-    Client* client() const{return static_cast<Client*>(client_ptr_);}
+    Client* client() const{return static_cast<Client*>(client_ptr_.get());}
 private:
     /**
      * @brief PBFT消息的注入P2Pnode
@@ -127,7 +131,7 @@ private:
             injectPBFT();
     }
     //P2P网络
-    PBFTClient* client_ptr_;
+    std::unique_ptr<PBFTClient> client_ptr_;
     std::string client_name_;
     //pbft
     PBFTStateMachine pbft_instance_;
