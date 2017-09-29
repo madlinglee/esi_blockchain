@@ -59,6 +59,7 @@ public:
         pbft_instance_.start();
         Worker::startWorking();
     }
+
     /**
      * @brief 重写Worker的工作线程
      */
@@ -66,6 +67,14 @@ public:
     {
         excuteConsensus();
     }
+
+    void stopPBFT()
+    {
+        pbft_instance_.stop();
+        Worker::stopWorking();
+    }
+    Client* client() const{return static_cast<Client*>(client_ptr_);}
+private:
     /**
      * @brief PBFT消息的注入P2Pnode
      */
@@ -117,13 +126,6 @@ public:
             injectP2P();
             injectPBFT();
     }
-    void stopPBFT()
-    {
-        pbft_instance_.stop();
-        Worker::stopWorking();
-    }
-    Client* client() const{return static_cast<Client*>(client_ptr_);}
-private:
     //P2P网络
     PBFTClient* client_ptr_;
     std::string client_name_;
