@@ -12,6 +12,24 @@ using namespace std;
 using namespace dev::eth;
 using namespace pbft;
 
+struct ClientWarn: public LogChannel
+{ 
+    static const char* name()
+    {
+        return EthYellow "⧫" EthBlue " ◇";
+    }
+    static const int verbosity = 9; 
+};
+
+struct ClientError: public LogChannel
+{ 
+    static const char* name()
+    {
+        return EthYellow "⧫" EthRed " ✘";
+    }
+    static const int verbosity = 10; 
+};
+
 PBFTClient::PBFTClient(
         const ChainParams& params,
         int network_id,
@@ -73,7 +91,7 @@ void PBFTClient::syncTransactionQueue()
     {
         if (m_working.isSealed())
         {
-            ctrace << "Skipping txq sync for a sealed block.";
+            clog(ClientWarn) << "Skipping txq sync for a sealed block.";
             return;
         }
 
@@ -83,7 +101,7 @@ void PBFTClient::syncTransactionQueue()
     if (new_pending_receipts.empty())
     {
         auto s = m_tq.status();
-        ctrace << "No transactions to process. " << m_working.pending().size() << " pending, " << s.current << " queued, " << s.future << " future, " << s.unverified << " unverified";
+        clog(ClientDetail) << "No transactions to process. " << m_working.pending().size() << " pending, " << s.current << " queued, " << s.future << " future, " << s.unverified << " unverified";
         return;
     }
 
@@ -101,12 +119,12 @@ void PBFTClient::syncTransactionQueue()
     // Tell watches about the new transactions.
     noteChanged(changeds);
 
-    ctrace << "Processed " << new_pending_receipts.size()
+    clog(ClientDetail) << "Processed " << new_pending_receipts.size()
         << " transactions in" << (timer.elapsed() * 1000)
         << "(" << (bool)m_syncTransactionQueue << ")";
-    cout << "#交易处理速度："
+    clog(ClientDetail) << "#交易处理速度："
         << ((new_pending_receipts.size()*1000)/((timer.elapsed()*1000000)/1000))
-        << "笔/s" << endl;
+        << "笔/s";
 }
 
 bool PBFTClient::sealCurrentBlockWithLock(const BlockHeader& bi)
@@ -121,8 +139,6 @@ bool PBFTClient::sealCurrentBlockWithLock(const BlockHeader& bi)
 
 bytes PBFTClient::createConsensusData()
 {
-    cout << "#区块链当前高度：" << bc().number()  << endl;
-
     if(!isMajorSyncing())
     {
         {
@@ -145,9 +161,9 @@ bytes PBFTClient::createConsensusData()
 
             m_sealingInfo = m_working.info();
 
-            cout << "#区块当前交易个数：" << m_working.pending().size()  << endl;
-            ctrace << "Generating seal on" << m_sealingInfo.hash(WithoutSeal) << "#" << m_sealingInfo.number();
-            clog(ClientNote) << "Caching new commited block.";
+            clog(ClientTrace) << "Generating seal on" << m_sealingInfo.hash(WithoutSeal) << "#" << m_sealingInfo.number();
+            clog(ClientDetail) << "Include" << m_working.pending().size() << "transactions";
+            clog(ClientDetail) << "Caching new commited block";
 
             bc().addBlockCache(m_working, m_working.info().difficulty());
 
@@ -158,7 +174,7 @@ bytes PBFTClient::createConsensusData()
             }
             else
             {
-                cout << "=提交区块失败..." << endl;
+                clog(ClientWarn) << "Seal null block";
                 return bytes();
             }
         }
@@ -177,7 +193,7 @@ bool PBFTClient::commit(const bytes& block)
     ImportRoute ir;
     if(block.empty())
     {
-        cout << "=不要将空区块入链..." << endl;
+        clog(ClientWarn) << "Stop commit null block";
         return false;
     }
     try
@@ -186,12 +202,12 @@ bool PBFTClient::commit(const bytes& block)
         //ir = bc().import(block, m_stateDB, true);
         ir = bc().importFromPBFT(block, m_stateDB, true);
         double elapsed = t.elapsed();
-        clog(ClientNote) << "1 block imported in" << unsigned(elapsed * 1000)
+        clog(ClientDetail) << "1 block imported in" << unsigned(elapsed * 1000)
             << "ms (" << (1 / elapsed) << "blocks/s) in #" << bc().number();
     }
     catch(...)
     {
-        cout << "=区块入链失败..." << endl;
+        clog(ClientWarn) << "Commit failed";
         resyncStateFromChain();
         return false;
     }
@@ -225,7 +241,7 @@ void PBFTClient::testSealing()
 {
     if(bc().chainParams().chainID != -1)
     {
-        cout << "=非测试模式..." << endl;
+        clog(ClientWarn) << "As not test mode";
         return;
     }
     bytes b = createConsensusData();

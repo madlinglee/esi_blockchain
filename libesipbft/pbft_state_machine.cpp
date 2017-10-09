@@ -8,9 +8,10 @@
 #include "pbft_state_machine.h"
 #include "libdevcore/RLP.h"
 #include "libdevcrypto/Hash.h"
+
 using namespace dev;
 using namespace std;
-#define printf printf("%02x ",key_pair_.pub()[0]); printf
+
 void PBFTStateMachine::injectPBFTI(PBFTInterface* pbft_interface)
 {
     pbft_interface_ = pbft_interface;
@@ -62,7 +63,7 @@ void PBFTStateMachine::handleMsg(PBFTMsg msg)
         }
     }catch(...)
     {
-        printf("[Warn] handlMsg Error:%02x\n", msg.msg_type_);
+        clog(PBFTError) << "Handle" << msg.msg_type_ << "msg error";
     }
     return;
 }
@@ -81,7 +82,7 @@ void PBFTStateMachine::processProposalMsg(const bytes& msg)
     catch(...)
     {
         proposal_info_.clear();
-        printf("[Warn] recv unvalid proposal msg. rlp error\n");
+        clog(PBFTError) << "Recv unvalid proposal msg: rlp error";
         return;
     }
     if(isProposer() || verifyProposalInfo())
@@ -105,21 +106,21 @@ bool PBFTStateMachine::verifyProposalInfo()
         if(h != round_state_.height || r != round_state_.round) //验证数据的高度和轮次
         {
             proposal_info_.clear();
-            printf("[Warn] recv unvalid proposal msg. h r wrong(%ld, %ld)\n", h, r);
+            clog(PBFTWarn) << "Recv unvalid proposal msg: h r" << "(" << h << "," << r << ") wrong";
             return false;
         }
     }
     catch(...)
     {
         proposal_info_.clear();
-        printf("[Warn] recv unvalid proposal msg. rlp failed\n");
+        clog(PBFTError) << "Recv unvalid proposal msg: rlp error";
         return false;
     }
 
     if(!pbft_interface_->verify(data)) //协商的共识数据没有通过外部接口的确认
     {
         proposal_info_.clear();
-        printf("[Warn] recv unvalid proposal msg. data failed(%ld, %ld)\n", h, r);
+        clog(PBFTWarn) << "Recv unvalid proposal msg: data failed" << "(" << h << "," << r << ")";
         return false;
     }
 
@@ -127,16 +128,16 @@ bool PBFTStateMachine::verifyProposalInfo()
     if(!(hash.asBytes() == proposal_info_.proposal_hash)) //验哈希
     {
         proposal_info_.clear();
-        printf("[Warn] recv unvalid proposal msg. hash failed(%ld, %ld)\n", h, r);
+        clog(PBFTWarn) << "Recv unvalid proposal msg: hash failed" << "(" << h << "," << r << ")";
         return false;
     }
     if(!dev::verify(proposal_validator_.pub_key, dev::Signature(proposal_info_.sign), hash)) //验签
     {
         proposal_info_.clear();
-        printf("[Warn] recv unvalid proposal msg. sign failed(%ld, %ld)\n", h, r);
+        clog(PBFTWarn) << "Recv unvalid proposal msg: sign failed" << "(" << h << "," << r << ")";
         return false;
     }
-    printf("[Trace] recv a valid proposal[%ld %ld]\n",h, r);
+    clog(PBFTTrace) << "Recv a valid proposal" << "(" << h << "," << r << ")";
     proposal_info_.is_valid = true;
     return true;
 }
@@ -157,24 +158,23 @@ void PBFTStateMachine::processVoteMsg(const bytes& msg)
     }
     catch(...)
     {
-        printf("[Warn] unvalid vote msg, rlp error\n");
+        clog(PBFTError) << "Recv unvalid vote msg: rlp error";
         return;
     }
 
     if(height != round_state_.height)
     {
-        printf("[Warn] unvalid vote msg. current height[%ld], vote height[%ld]\n",round_state_.height, height);
+        clog(PBFTWarn) << "Recv unvalid vote msg: current height:" << round_state_.height << ", vote height:" << height;
         return;
     }
     if(validator_index >= validator_set_.size())
     {
-        printf("[Warn] unvalid vote msg. validator_index[%ld], validator set size[%d]\n",validator_index, validator_set_.size());
+        clog(PBFTWarn) << "Recv unvalid vote msg: validator index:" << validator_index << ", validator set size:" << validator_set_.size();
         return;
     }
     if(dev::verify(validator_set_.getValidator(validator_index).pub_key, dev::Signature(signature), h256(bytesConstRef(&hash)) )) //验签
     {
-        printf("[Trace] recv %s msg. vote[%ld, %ld], current[%ld, %ld], validator[%ld]\n",
-                step2str(vote_type), height, round, round_state_.height, round_state_.round, validator_index);
+        clog(PBFTTrace) << "Recv" << step2str(vote_type) << "vote msg(" << height << ","<< round << "), current(" << round_state_.height << "," << round_state_.round << "), validator[" << validator_index << "]";
         vote_set_.addVote(height, round, vote_type,
                 validator_set_.getValidator(validator_index).pub_key, hash, signature);
         judgeVoteSet(vote_type);
@@ -182,7 +182,7 @@ void PBFTStateMachine::processVoteMsg(const bytes& msg)
     }
     else
     {
-        printf("[Trace] recv %s vote msg(%ld, %ld) sign failed vote type[%d]\n", step2str(vote_type), height, round, vote_type);
+        clog(PBFTWarn) << "Recv sign failed" << step2str(vote_type) << "vote msg(" << height << ","<< round << ")";
         return;
     }
 }
@@ -194,7 +194,7 @@ void PBFTStateMachine::judgePrevoteSet()
         MAJ32 maj32 = vote_set_.getTwoThirdsMajority(vote_type);
         if(maj32.round < round_state_.round) //以前的轮次，只更新锁定信息
         {
-            printf("[WARN] recv later prevote conensus. maj32_round[%ld] current_round[%ld]\n", maj32.round, round_state_.round);
+            clog(PBFTTrace) << "Recv later prevote consensus, major32 round:" << maj32.round << ", current round:" << round_state_.round;
             vote_set_.clearPrevoteMaj32(); //历史轮次的一致信息，立马清空
             //TODO update lock info
         }
@@ -216,7 +216,7 @@ void PBFTStateMachine::judgePrevoteSet()
         if(any32.round < round_state_.round)
         {
             //do nothing
-            printf("[Trace] get prevote any32. any32.round[%ld] current round[%ld]\n", any32.round, round_state_.round);
+            clog(PBFTTrace) << "Recv prevote any32, any32 round:" << any32.round << ", current round:" << round_state_.round;
         }
         else if(any32.round >= round_state_.round && round_state_.step <= PREVOTEWAIT_STEP)
         {
@@ -229,10 +229,10 @@ void PBFTStateMachine::judgePrevoteSet()
 }
 void PBFTStateMachine::tryCommit(long h, long r)
 {
-    printf("[Trace] I am in in tryCommit\n");
+    clog(PBFTTrace) << "Try commit";
     if(!vote_set_.hasTwoThirdsMajority(PRECOMMIT_STEP))
     {
-        printf("[WARN] I enter tryCommit. but there is no 32Maj\n");
+        clog(PBFTWarn) << "No maj32...";
         return;
     }
     MAJ32 maj32 = vote_set_.getTwoThirdsMajority(PRECOMMIT_STEP);
@@ -246,13 +246,13 @@ void PBFTStateMachine::tryCommit(long h, long r)
     }
     else
     {
-        printf("[Trace] Hmmm.. we consensus null data. we will enterNextRound\n");
+        clog(PBFTTrace) << "Enter next round for null consensus data";
         enterNewRound(h, r+1);
     }
 }
 void PBFTStateMachine::finallyCommit(const bytes& data)
 {
-    printf("[Trace] I am in finallyCommit\n");
+    clog(PBFTTrace) << "Finally commit";
     try
     {
         if(pbft_interface_->commit(RLP(data)[2].toBytes()))
@@ -264,7 +264,7 @@ void PBFTStateMachine::finallyCommit(const bytes& data)
         }
     }catch(...)
     {
-        printf("[ERROR] wtf, commit data rlp error\n");
+        clog(PBFTError) << "Commit unvalid data: rlp error";
         enterNewRound(round_state_.height, round_state_.round + 1);
     }
 }
@@ -277,7 +277,7 @@ void PBFTStateMachine::judgePrecommitSet()
         if(maj32.round < round_state_.round)
         {
             //do nothing
-            printf("[WARN] oh god, what happened, we have recved precommit maj32 for history round\n");
+            clog(PBFTTrace) << "Recv precommit maj32 for history round";
             vote_set_.clearPrecommitMaj32();
         }
         else if(maj32.round >= round_state_.round)
@@ -291,7 +291,7 @@ void PBFTStateMachine::judgePrecommitSet()
         if(any32.round < round_state_.round)
         {
             //do nothing
-            printf("[Trace] get precommit any32. any32.round[%ld] current round[%ld]\n", any32.round, round_state_.round);
+            clog(PBFTTrace) << "Recv precommit any32, any32 round:" << any32.round << ", current round:" << round_state_.round;
         }
         else if(any32.round >= round_state_.round && round_state_.step <= PRECOMMITWAIT_STEP)
         {
@@ -309,10 +309,10 @@ void PBFTStateMachine::enterPrecommitwait(long h, long r)
 {
     if(h != round_state_.height || r < round_state_.round || (r == round_state_.round && PRECOMMITWAIT_STEP <= round_state_.step))
     {
-        printf("[Warn] invalid entrePrecommitwait[%ld %ld], current[%ld %ld]\n", h, r, round_state_.height, round_state_.round);
+        clog(PBFTWarn) << "Enter invalid PrecommitWait step: args(" << h << "," << r << "), current(" << round_state_.height << "," << round_state_.round << ")";
         return;
     }
-    printf("[Trace] enterPrecommitwait\n");
+    clog(PBFTTrace) << "Enter PrecommitWait step";
     round_state_.update(r, PRECOMMITWAIT_STEP);
     timeOut(PRECOMMITWAIT_STEP);
 }
@@ -331,10 +331,10 @@ void PBFTStateMachine::enterPrevotewait(long h, long r)
 {
     if(h != round_state_.height || r < round_state_.round || (r == round_state_.round && PREVOTEWAIT_STEP <= round_state_.step))
     {
-        printf("[Warn] invalid entrePrevotewait[%ld %ld], current[%ld %ld]\n", h, r, round_state_.height, round_state_.round);
+        clog(PBFTWarn) << "Enter invalid PrevoteWait step: args(" << h << "," << r << "), current(" << round_state_.height << "," << round_state_.round << ")";
         return;
     }
-    printf("[Trace] enterPrevotewait\n");
+    clog(PBFTTrace) << "Enter PrevoteWait step";
     round_state_.update(r, PREVOTEWAIT_STEP);
     timeOut(PREVOTEWAIT_STEP);
 
@@ -343,10 +343,10 @@ void PBFTStateMachine::enterPrecommit(long h, long r)
 {
     if(h != round_state_.height || r < round_state_.round || (r == round_state_.round && PRECOMMIT_STEP <= round_state_.step))
     {
-        printf("[Warn] invalid entrePrecommit[%ld %ld], current[%ld %ld]\n", h, r, round_state_.height, round_state_.round);
+        clog(PBFTWarn) << "Enter invalid Precommit step: args(" << h << "," << r << "), current(" << round_state_.height << "," << round_state_.round << ")";
         return;
     }
-    printf("[Trace] enterPrecommit\n");
+    clog(PBFTTrace) << "Enter Precommit step";
     time_out_ticker_.pause();
     round_state_.update(r, PRECOMMIT_STEP);
     if(vote_set_.hasTwoThirdsMajority(PREVOTE_STEP)) //达成了一致
@@ -356,26 +356,26 @@ void PBFTStateMachine::enterPrecommit(long h, long r)
         h256 lock_prevote_hash = createVoteMsgHash(round_state_.height, round_state_.round, PREVOTE_STEP, lock_info_.lock_data.proposal_hash);
         if(maj32.voted_proposal_hash == prevote_hash.asBytes()) //对提案信息达成了一致
         {
-            printf("[Trace] do precommit proposal data\n");
+            clog(PBFTTrace) << "Do precommit for proposal";
             lock_info_.update(h, r, proposal_info_); //更新锁定信息
             sendMsg(VOTE, createVoteMsg(proposal_info_.proposal_hash, PRECOMMIT_STEP));
 
         }
         else if(maj32.voted_proposal_hash == lock_prevote_hash.asBytes()) //对锁定信息达成了一致
         {
-            printf("[Trace] do precommit lock data\n");
+            clog(PBFTTrace) << "Do precommit for lock";
             sendMsg(VOTE, createVoteMsg(lock_info_.lock_data.proposal_hash, PRECOMMIT_STEP));
         }
         else //其它情况，投空票
         {
-            printf("[Trace] do precommit nil data\n");
+            clog(PBFTTrace) << "Do precommit for null";
             lock_info_.clear(); //解锁
             sendMsg(VOTE, createVoteMsg("NULL", PRECOMMIT_STEP));
         }
     }
     else if(vote_set_.hasTwoThirdsAny(PREVOTE_STEP)) //超时
     {
-            printf("[Trace] enterPrecommit for timeout\n");
+            clog(PBFTTrace) << "Do precommit for null/timeout";
             sendMsg(VOTE, createVoteMsg("NULL", PRECOMMIT_STEP));
     }
 }
@@ -391,16 +391,16 @@ void PBFTStateMachine::processTimeOutMsg(const bytes msg)
     }
     catch(...)
     {
-        printf("[Warn] unvalid timeout msg, rlp error\n");
+        clog(PBFTError) << "Recv unvalid timeout msg: rlp error";
         return;
     }
 
     if(height != round_state_.height || round != round_state_.round || (round == round_state_.round && round_step < round_state_.step))
     {
-        printf("[Warn] unvalid timeout msg\n");
+        clog(PBFTWarn) << "Recv unvalid timeout msg";
         return;
     }
-    printf("[Trace] recv timeout msg(%ld, %ld, %s)\n", height, round, step2str(round_step));
+    clog(PBFTTrace) << "Recv timeout msg(" << height << "," <<round << "," << step2str(round_step) << ")";
     switch(round_step)
     {
         case NEW_HEIGHT_STEP:
@@ -416,7 +416,7 @@ void PBFTStateMachine::processTimeOutMsg(const bytes msg)
             enterNewRound(round_state_.height, round_state_.round + 1);
             break;
         default:
-            printf("[Warn] unvaild type timeout msg\n");
+            clog(PBFTError) << "Recv unvalid type timeout msg";
     }
 }
 void PBFTStateMachine::timeOut(PBFT_STATE step)
@@ -438,7 +438,7 @@ void PBFTStateMachine::timeOut(PBFT_STATE step)
             time_out_ms = 50;
             break;
         default:
-            printf("[Error] timeOut unkonwn type %02x\n", step);
+            clog(PBFTError) << "Timeout unknown type" << step;
             break;
     }
     time_out_ticker_.pause();
@@ -470,10 +470,10 @@ void PBFTStateMachine::enterNewRound(long h, long r)
 {
     if(round_state_.height != h || round_state_.round > r || (round_state_.round == r && round_state_.step != NEW_HEIGHT_STEP))
     {
-        printf("[Warn]:enterNewRound Invalid args(%ld,%ld), current state(%ld,%ld,%d)\n",
-                h,r,round_state_.height,round_state_.round,round_state_.step);
+        clog(PBFTWarn) << "Enter invalid NewRound step: args(" << h << "," << r <<"), current(" << round_state_.height << "," << round_state_.round << "," << step2str(round_state_.step) << ")";
         return;
     }
+    clog(PBFTTrace) << "Enter NewRound step(" << h << "," << r <<")";
     //在enterNewHeight中更新了验证者集合和提案者信息
     //在这里只更新了提案者信息，如果上一轮没有协商成功，那么下一轮必须更换提案者
     //而验证者集合，只有在协商的第0轮，才有可能更新
@@ -493,14 +493,13 @@ void PBFTStateMachine::enterPropose(long h, long r)
 {
     if(round_state_.height != h || round_state_.round > r || (round_state_.round == r && PROPOSAL_STEP <= round_state_.step))
     {
-        printf("[Warn]:enterProposeSet Invalid args(%d,%ld), current state(%ld,%ld,%s)\n",
-                h,r,round_state_.height, round_state_.round, step2str(round_state_.step));
+        clog(PBFTWarn) << "Enter invalid Propose step: args(" << h << "," << r <<"), current(" << round_state_.height << "," << round_state_.round << "," << step2str(round_state_.step) << ")";
         return;
     }
-    printf("[Trace] enterProposal[%ld %ld]\n", h, r);
+    clog(PBFTTrace) << "Enter Propose step(" << h << "," << r <<")";
     if(isProposer()) //我是提案者
     {
-        printf("[Trace] I am a proposer\n");
+        clog(PBFTDetail) << "As a proposer";
         createProposalInfo();
         sendProposal();
         round_state_.update(r, PROPOSAL_STEP);
@@ -509,7 +508,7 @@ void PBFTStateMachine::enterPropose(long h, long r)
     {
         round_state_.update(r, PROPOSAL_STEP);
         timeOut(PROPOSAL_STEP);
-        printf("[Trace] I am not a proposer\n");
+        clog(PBFTDetail) << "As not a proposer";
     }
 }
 
@@ -517,10 +516,10 @@ void PBFTStateMachine::enterPrevote(long h, long r)
 {
     if(round_state_.height != h || round_state_.round > r || (round_state_.round == r && PREVOTE_STEP <= round_state_.step))
     {
-        printf("[Warn]:enterPrevote Invalid args(%ld,%ld), current state(%ld,%ld,%s)\n",
-                h, r, round_state_.height, round_state_.round, step2str(round_state_.step));
+        clog(PBFTWarn) << "Enter invalid Prevote step: args(" << h << "," << r <<"), current(" << round_state_.height << "," << round_state_.round << "," << step2str(round_state_.step) << ")";
         return;
     }
+    clog(PBFTTrace) << "Enter Prevote step(" << h << "," << r <<")";
     round_state_.update(r, PREVOTE_STEP);
     time_out_ticker_.pause();
     doPrevote(h, r);
@@ -544,7 +543,7 @@ bytes PBFTStateMachine::createVoteMsg(const bytes& msg, PBFT_STATE type)
         rlp.append(signature.asBytes());
     }catch(...)
     {
-        printf("[Error] create vote msg error\n");
+        clog(PBFTError) << "Create vote msg failed";
     }
     return rlp.out();
 }
@@ -559,6 +558,7 @@ void PBFTStateMachine::doPrevote(long h, long r)
 
     if(proposal_info_.is_valid) //提案信息有效
     {
+        clog(PBFTTrace) << "Do prevote for proposal";
         sendMsg(VOTE, createVoteMsg(proposal_info_.proposal_hash, PREVOTE_STEP));
     }
     /*
@@ -569,10 +569,10 @@ void PBFTStateMachine::doPrevote(long h, long r)
     */
     else //空
     {
+        clog(PBFTTrace) << "Do prevote for null";
         sendMsg(VOTE, createVoteMsg("NULL", PREVOTE_STEP));
     }
     //TODO preovte类型投票
-    printf("[Trace] I did prevote\n");
 }
 void PBFTStateMachine::createProposalInfo()
 {
@@ -610,4 +610,3 @@ bool PBFTStateMachine::isProposer()
 {
     return key_pair_.pub() == proposal_validator_.pub_key;
 }
-#undef printf

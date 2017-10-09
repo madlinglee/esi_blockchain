@@ -55,6 +55,8 @@ public:
      */
     void startPBFT()
     {
+        
+        clog(PBFTNote) << "Starting PBFT consensus";
         //注册广播消息队列
         pbft_instance_.registerMsgCollector(this);
     //注册数据验证和提交接口
@@ -74,6 +76,7 @@ public:
 
     void stopPBFT()
     {
+        clog(PBFTNote) << "Stopping PBFT consensus";
         pbft_instance_.stop();
         Worker::stopWorking();
     }
@@ -113,11 +116,8 @@ private:
             PBFTMsg message;
             RLP rlp(P2PMsgs[i]);
             message.msg_type_ = (PBFT_MSG_TYPE)atol(rlp[0].toString().c_str());
-            std::cout<<rlp[0].toString()<<std::endl;
             message.msg_content_ = rlp[1].toBytes();
             pbft_instance_.pushMsg(message);
-
-            std::cout<<rlp.toString()<<std::endl;
         }
         return;
     }

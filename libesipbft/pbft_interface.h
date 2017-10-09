@@ -41,7 +41,7 @@ public:
 	{
 		std::string str;
 		str.assign(data.begin(), data.end());
-		printf("commit:%s\n", str.c_str());
+        clog(PBFTNote) << "Commit:" << str.c_str();
 		return false;
 	};    
 

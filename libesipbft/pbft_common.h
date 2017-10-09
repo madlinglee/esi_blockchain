@@ -11,10 +11,61 @@
  */
 #ifndef PBFT_COMM_H_
 #define PBFT_COMM_H_
-#include "libdevcore/Common.h"
-#include "libdevcrypto/Common.h"
+#include <libdevcore/Log.h>
+#include <libdevcore/Common.h>
+#include <libdevcrypto/Common.h>
+using namespace dev;
 using PubKey = dev::Public; //64字节的公钥
 using SecKey = dev::Secret; //32字节的私钥
+
+struct PBFTNote: public LogChannel 
+{ 
+    static const char* name()
+    {
+        return EthYellow "❇" EthBlue " ℹ";
+    } 
+    static const int verbosity = 2; 
+};
+struct PBFTChat: public LogChannel 
+{ 
+    static const char* name()
+    {
+        return EthYellow "❇" EthWhite " ◌";
+    } 
+    static const int verbosity = 4;
+};
+struct PBFTTrace: public LogChannel
+{ 
+    static const char* name()
+    {
+        return EthYellow "❇" EthGray " ◎";
+    } 
+    static const int verbosity = 7; 
+};
+struct PBFTDetail: public LogChannel 
+{
+    static const char* name()
+    {
+        return EthYellow "❇" EthNavy " ●";
+    } 
+    static const int verbosity = 8; 
+};
+struct PBFTWarn: public LogChannel 
+{ 
+    static const char* name()
+    {
+        return EthYellow "❇" EthOrange " ◇";
+    }
+    static const int verbosity = 9;
+};
+struct PBFTError: public LogChannel 
+{
+    static const char* name()
+    {
+        return EthYellow "❇" EthRed " ✘";
+    }
+    static const int verbosity = 10;
+};
 
 /**
  * @brief 消息类型

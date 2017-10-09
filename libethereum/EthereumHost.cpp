@@ -46,7 +46,7 @@ char const* const EthereumHost::s_stateNames[static_cast<int>(SyncState::Size)] 
 #if defined(_WIN32)
 const char* EthereumHostTrace::name() { return EthPurple "^" EthGray "  "; }
 #else
-const char* EthereumHostTrace::name() { return EthPurple "⧫" EthGray " "; }
+const char* EthereumHostTrace::name() { return EthPurple "⧫" EthGray "  "; }
 #endif
 
 namespace
@@ -536,7 +536,7 @@ void EthereumHost::broadcastPBFTMsgs(const bytes& msg)
         RLPStream ts;
         p->prep(ts, PBFTPacket, 1).appendRaw(msg, 1);
         p->sealAndSend(ts);
-        clog(EthereumHostTrace) << "Sent PBFT messages to " << p->session()->info().clientVersion;
+        clog(EthereumHostTrace) << "Sent PBFT messages to " << p->session()->info().id;
     }
 }
 

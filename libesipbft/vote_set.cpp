@@ -24,7 +24,7 @@ void VoteSet::addVote(Vote vote)
 {
     if(isExistVote(vote))
     {
-        printf("[Trace] vote is exist\n");
+        clog(PBFTDetail) << "Vote existed";
         return;
     }
     if(PREVOTE_STEP == vote.vote_type)
@@ -124,21 +124,21 @@ void VoteSet::updateVote(const Vote& vote)
 {
     long count = 0;
     long threshold = (validators_.size()*2)/3 + 1;
-    printf("threshold:%ld\n", threshold);
+    clog(PBFTDetail) << "Threshold:" << threshold;
     if(vote.vote_type == PREVOTE_STEP)
     {
         count = ++round_prevote_count_[vote.round].count;
-        printf("prevote any count:%ld,vote.height:%ld,vote.round:%ld\n", count, vote.height, vote.round);
+        clog(PBFTDetail) << "Prevote any count:" << count << "height:" << vote.height << "round:" << vote.round;
         if((size_t)count >= (validators_.size()*2)/3 + 1)
         {
             prevote_any32_.round = vote.round;
-            printf("got any32!\n");
+            clog(PBFTDetail) << "Got any32";
         }
         count = ++round_hash_prevote_count_[vote.round][vote.voted_proposal_hash].count;
-        printf("prevote maj count:%ld,vote.height:%ld,vote.round:%ld\n", count, vote.height, vote.round);
+        clog(PBFTDetail) << "Prevote maj count:" << count << "height:" << vote.height << "round:" << vote.round;
         if((size_t)count >= (validators_.size()*2)/3 + 1)
         {
-            printf("got maj32!\n");
+            clog(PBFTDetail) << "Got maj32";
             prevote_maj32_.round = vote.round;
             prevote_maj32_.voted_proposal_hash = vote.voted_proposal_hash;
         }
@@ -146,17 +146,17 @@ void VoteSet::updateVote(const Vote& vote)
     else if(vote.vote_type == PRECOMMIT_STEP)
     {
         count = ++round_precommit_count_[vote.round].count;
-        printf("precommit any count:%ld,vote.height:%ld,vote.round:%ld\n", count, vote.height, vote.round);
+        clog(PBFTDetail) << "Precommit any count:" << count << "height:" << vote.height << "round:" << vote.round;
         if((size_t)count >= (validators_.size()*2)/3 + 1)
         {
             precommit_any32_.round = vote.round;
-            printf("got any32!\n");
+            clog(PBFTDetail) << "Got any32";
         }
         count = ++round_hash_precommit_count_[vote.round][vote.voted_proposal_hash].count;
-        printf("precommit maj count:%ld,vote.height:%ld,vote.round:%ld\n", count, vote.height, vote.round);
+        clog(PBFTDetail) << "Precommit maj count:" << count << "height:" << vote.height << "round:" << vote.round;
         if((size_t)count >= (validators_.size()*2)/3 + 1)
         {
-            printf("got maj32!\n");
+            clog(PBFTDetail) << "Got maj32";
             precommit_maj32_.round = vote.round;
             precommit_maj32_.voted_proposal_hash = vote.voted_proposal_hash;
         }
