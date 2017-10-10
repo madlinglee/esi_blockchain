@@ -42,7 +42,7 @@ static_assert(BOOST_VERSION >= 106400, "Wrong boost headers version");
 std::ostream& dev::eth::operator<<(std::ostream& _out, ActivityReport const& _r)
 {
 	_out << "Since " << toString(_r.since) << " (" << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - _r.since).count();
-	_out << "): " << _r.ticks << "ticks";
+	_out << "s): " << _r.ticks << "ticks";
 	return _out;
 }
 

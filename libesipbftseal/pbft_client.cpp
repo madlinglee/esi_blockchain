@@ -18,7 +18,7 @@ struct ClientWarn: public LogChannel
     {
         return EthYellow "⧫" EthBlue " ◇";
     }
-    static const int verbosity = 9; 
+    static const int verbosity = 8; 
 };
 
 struct ClientError: public LogChannel
@@ -27,7 +27,7 @@ struct ClientError: public LogChannel
     {
         return EthYellow "⧫" EthRed " ✘";
     }
-    static const int verbosity = 10; 
+    static const int verbosity = 8; 
 };
 
 PBFTClient::PBFTClient(
@@ -60,7 +60,7 @@ void PBFTClient::doWork()
     if (!m_syncBlockQueue)
     {
         std::unique_lock<std::mutex> l(x_signalled);
-        m_signalled.wait_for(l, chrono::seconds(5));
+        m_signalled.wait_for(l, chrono::seconds(6));
     }
 }
 
@@ -121,7 +121,7 @@ void PBFTClient::syncTransactionQueue()
 
     clog(ClientDetail) << "Processed " << new_pending_receipts.size()
         << " transactions in" << (timer.elapsed() * 1000)
-        << "(" << (bool)m_syncTransactionQueue << ")";
+        << "ms (" << (bool)m_syncTransactionQueue << ")";
     clog(ClientDetail) << "#交易处理速度："
         << ((new_pending_receipts.size()*1000)/((timer.elapsed()*1000000)/1000))
         << "笔/s";

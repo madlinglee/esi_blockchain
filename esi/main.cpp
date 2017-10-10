@@ -101,7 +101,7 @@ int main(int argc, char** argv)
             }
         }
     }
-    g_logVerbosity = 10;
+    g_logVerbosity = 8;
     //向密封引擎注册商注册
     NoProof::init();
     BasicAuthority::init();

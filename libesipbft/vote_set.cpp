@@ -132,13 +132,13 @@ void VoteSet::updateVote(const Vote& vote)
         if((size_t)count >= (validators_.size()*2)/3 + 1)
         {
             prevote_any32_.round = vote.round;
-            clog(PBFTDetail) << "Got any32";
+            clog(PBFTDetail) << "Got prevote any32";
         }
         count = ++round_hash_prevote_count_[vote.round][vote.voted_proposal_hash].count;
         clog(PBFTDetail) << "Prevote maj count:" << count << "height:" << vote.height << "round:" << vote.round;
         if((size_t)count >= (validators_.size()*2)/3 + 1)
         {
-            clog(PBFTDetail) << "Got maj32";
+            clog(PBFTDetail) << "Got prevote maj32";
             prevote_maj32_.round = vote.round;
             prevote_maj32_.voted_proposal_hash = vote.voted_proposal_hash;
         }
@@ -150,13 +150,13 @@ void VoteSet::updateVote(const Vote& vote)
         if((size_t)count >= (validators_.size()*2)/3 + 1)
         {
             precommit_any32_.round = vote.round;
-            clog(PBFTDetail) << "Got any32";
+            clog(PBFTDetail) << "Got precommit any32";
         }
         count = ++round_hash_precommit_count_[vote.round][vote.voted_proposal_hash].count;
         clog(PBFTDetail) << "Precommit maj count:" << count << "height:" << vote.height << "round:" << vote.round;
         if((size_t)count >= (validators_.size()*2)/3 + 1)
         {
-            clog(PBFTDetail) << "Got maj32";
+            clog(PBFTDetail) << "Got precommit maj32";
             precommit_maj32_.round = vote.round;
             precommit_maj32_.voted_proposal_hash = vote.voted_proposal_hash;
         }

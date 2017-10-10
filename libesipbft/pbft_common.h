@@ -56,7 +56,7 @@ struct PBFTWarn: public LogChannel
     {
         return EthYellow "❇" EthOrange " ◇";
     }
-    static const int verbosity = 9;
+    static const int verbosity = 8;
 };
 struct PBFTError: public LogChannel 
 {
@@ -64,7 +64,7 @@ struct PBFTError: public LogChannel
     {
         return EthYellow "❇" EthRed " ✘";
     }
-    static const int verbosity = 10;
+    static const int verbosity = 8;
 };
 
 /**
