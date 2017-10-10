@@ -82,7 +82,7 @@ void PBFTStateMachine::processProposalMsg(const bytes& msg)
     catch(...)
     {
         proposal_info_.clear();
-        clog(PBFTError) << "Recv unvalid proposal msg: rlp error";
+        clog(PBFTError) << "Recv invalid proposal msg: rlp error";
         return;
     }
     if(isProposer() || verifyProposalInfo())
@@ -106,21 +106,21 @@ bool PBFTStateMachine::verifyProposalInfo()
         if(h != round_state_.height || r != round_state_.round) //验证数据的高度和轮次
         {
             proposal_info_.clear();
-            clog(PBFTWarn) << "Recv unvalid proposal msg: h r" << "(" << h << "," << r << ") wrong";
+            clog(PBFTWarn) << "Recv invalid proposal msg: h r" << "(" << h << "," << r << ") wrong";
             return false;
         }
     }
     catch(...)
     {
         proposal_info_.clear();
-        clog(PBFTError) << "Recv unvalid proposal msg: rlp error";
+        clog(PBFTError) << "Recv invalid proposal msg: rlp error";
         return false;
     }
 
     if(!pbft_interface_->verify(data)) //协商的共识数据没有通过外部接口的确认
     {
         proposal_info_.clear();
-        clog(PBFTWarn) << "Recv unvalid proposal msg: data failed" << "(" << h << "," << r << ")";
+        clog(PBFTWarn) << "Recv invalid proposal msg: data failed" << "(" << h << "," << r << ")";
         return false;
     }
 
@@ -128,13 +128,13 @@ bool PBFTStateMachine::verifyProposalInfo()
     if(!(hash.asBytes() == proposal_info_.proposal_hash)) //验哈希
     {
         proposal_info_.clear();
-        clog(PBFTWarn) << "Recv unvalid proposal msg: hash failed" << "(" << h << "," << r << ")";
+        clog(PBFTWarn) << "Recv invalid proposal msg: hash failed" << "(" << h << "," << r << ")";
         return false;
     }
     if(!dev::verify(proposal_validator_.pub_key, dev::Signature(proposal_info_.sign), hash)) //验签
     {
         proposal_info_.clear();
-        clog(PBFTWarn) << "Recv unvalid proposal msg: sign failed" << "(" << h << "," << r << ")";
+        clog(PBFTWarn) << "Recv invalid proposal msg: sign failed" << "(" << h << "," << r << ")";
         return false;
     }
     clog(PBFTTrace) << "Recv a valid proposal" << "(" << h << "," << r << ")";
@@ -158,18 +158,18 @@ void PBFTStateMachine::processVoteMsg(const bytes& msg)
     }
     catch(...)
     {
-        clog(PBFTError) << "Recv unvalid vote msg: rlp error";
+        clog(PBFTError) << "Recv invalid vote msg: rlp error";
         return;
     }
 
     if(height != round_state_.height)
     {
-        clog(PBFTWarn) << "Recv unvalid vote msg: current height:" << round_state_.height << ", vote height:" << height;
+        clog(PBFTWarn) << "Recv invalid vote msg: current height:" << round_state_.height << ", vote height:" << height;
         return;
     }
     if(validator_index >= validator_set_.size())
     {
-        clog(PBFTWarn) << "Recv unvalid vote msg: validator index:" << validator_index << ", validator set size:" << validator_set_.size();
+        clog(PBFTWarn) << "Recv invalid vote msg: validator index:" << validator_index << ", validator set size:" << validator_set_.size();
         return;
     }
     if(dev::verify(validator_set_.getValidator(validator_index).pub_key, dev::Signature(signature), h256(bytesConstRef(&hash)) )) //验签
@@ -264,7 +264,7 @@ void PBFTStateMachine::finallyCommit(const bytes& data)
         }
     }catch(...)
     {
-        clog(PBFTError) << "Commit unvalid data: rlp error";
+        clog(PBFTError) << "Commit invalid data: rlp error";
         enterNewRound(round_state_.height, round_state_.round + 1);
     }
 }
@@ -391,13 +391,13 @@ void PBFTStateMachine::processTimeOutMsg(const bytes msg)
     }
     catch(...)
     {
-        clog(PBFTError) << "Recv unvalid timeout msg: rlp error";
+        clog(PBFTError) << "Recv invalid timeout msg: rlp error";
         return;
     }
 
     if(height != round_state_.height || round != round_state_.round || (round == round_state_.round && round_step < round_state_.step))
     {
-        clog(PBFTWarn) << "Recv unvalid timeout msg";
+        clog(PBFTWarn) << "Recv invalid timeout msg";
         return;
     }
     clog(PBFTTrace) << "Recv timeout msg(" << height << "," <<round << "," << step2str(round_step) << ")";
@@ -416,7 +416,7 @@ void PBFTStateMachine::processTimeOutMsg(const bytes msg)
             enterNewRound(round_state_.height, round_state_.round + 1);
             break;
         default:
-            clog(PBFTError) << "Recv unvalid type timeout msg";
+            clog(PBFTError) << "Recv invalid type timeout msg";
     }
 }
 void PBFTStateMachine::timeOut(PBFT_STATE step)

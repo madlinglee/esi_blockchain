@@ -30,7 +30,7 @@ public:
     /**
      * @brief 构造函数
      */
-    PBFTStateMachine() : Worker("pbft")
+    PBFTStateMachine() : Worker("bft")
     {
         injectPBFTI(new PBFTInterface());
         round_state_.update(0,0,UNVALID_STATE);

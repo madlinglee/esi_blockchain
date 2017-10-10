@@ -27,7 +27,7 @@ using namespace pbft;
 class Consenter: public MsgCollectorI, public Worker
 {
 public:
-    Consenter(const std::string& consenter_name, const eth::ChainParams& params, p2p::Host* host, const boost::filesystem::path& db_path, WithExisting we = WithExisting::Trust) : Worker("cons"),
+    Consenter(const std::string& consenter_name, const eth::ChainParams& params, p2p::Host* host, const boost::filesystem::path& db_path, WithExisting we = WithExisting::Trust) : Worker("con"),
     client_name_(consenter_name)
     {
         client_ptr_.reset(new PBFTClient(params, (int)params.networkID, host, std::shared_ptr<GasPricer>(), db_path, we));
