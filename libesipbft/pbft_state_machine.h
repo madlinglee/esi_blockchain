@@ -285,5 +285,6 @@ private:
     KeyWrapped      key_pair_;             //我的密钥
     VoteSet         vote_set_;          //收集的投票信息
     LockInfo        lock_info_;         //锁定信息
+    std::atomic<bool> no_tx_round_ = {false};
 };
 #endif //PBFT_STATE_MACHINE_H_

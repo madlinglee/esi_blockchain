@@ -395,12 +395,13 @@ void PBFTStateMachine::processTimeOutMsg(const bytes msg)
         return;
     }
 
-    if(height != round_state_.height || round != round_state_.round || (round == round_state_.round && round_step < round_state_.step))
+    if(height != round_state_.height || round != round_state_.round || (round == round_state_.round && round_step < round_state_.step && !no_tx_round_.load()))
     {
         clog(PBFTWarn) << "Recv invalid timeout msg";
         return;
     }
-    clog(PBFTTrace) << "Recv timeout msg(" << height << "," <<round << "," << step2str(round_step) << ")";
+    if(!no_tx_round_.load())
+        clog(PBFTTrace) << "Recv timeout msg(" << height << "," <<round << "," << step2str(round_step) << ")";
     switch(round_step)
     {
         case NEW_HEIGHT_STEP:
@@ -468,12 +469,14 @@ void PBFTStateMachine::updateVoteSetValidator()
 }
 void PBFTStateMachine::enterNewRound(long h, long r)
 {
-    if(round_state_.height != h || round_state_.round > r || (round_state_.round == r && round_state_.step != NEW_HEIGHT_STEP))
+    bool t = true;
+    if(round_state_.height != h || round_state_.round > r || (round_state_.round == r && round_state_.step != NEW_HEIGHT_STEP && !no_tx_round_.compare_exchange_strong(t, false)))
     {
         clog(PBFTWarn) << "Enter invalid NewRound step: args(" << h << "," << r <<"), current(" << round_state_.height << "," << round_state_.round << "," << step2str(round_state_.step) << ")";
         return;
     }
-    clog(PBFTTrace) << "Enter NewRound step(" << h << "," << r <<")";
+    if(round_state_.step == NEW_HEIGHT_STEP)
+        clog(PBFTTrace) << "Enter NewRound step(" << h << "," << r <<")";
     //在enterNewHeight中更新了验证者集合和提案者信息
     //在这里只更新了提案者信息，如果上一轮没有协商成功，那么下一轮必须更换提案者
     //而验证者集合，只有在协商的第0轮，才有可能更新
@@ -484,9 +487,12 @@ void PBFTStateMachine::enterNewRound(long h, long r)
     vote_set_.clearPrevoteAny32();
     round_state_.update(r, NEW_ROUND_STEP);
     //TODO 如果内存中没有交易，则不调用enterPropose阶段，而是产生NewHeightStep超时事件，重新进入enterNewRound
-    //if(!pbft_interface_->getTxNum())
-    //    timeOut(NEW_HEIGHT_STEP);
-    //else
+    if(!pbft_interface_->getTxNum())
+    {
+        timeOut(NEW_HEIGHT_STEP);
+        no_tx_round_ = true;
+    }
+    else
         enterPropose(h, r);
 }
 void PBFTStateMachine::enterPropose(long h, long r)

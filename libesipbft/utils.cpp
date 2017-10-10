@@ -48,6 +48,9 @@ const char* step2str(long step)
         case NEW_HEIGHT_STEP:
             return "NEW_HEIGHT_STEP";
             break;
+        case NEW_ROUND_STEP:
+            return "NEW_ROUND_STEP";
+            break;
         case PROPOSAL_STEP:
             return "PROPOSAL_STEP";
             break;
