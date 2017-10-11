@@ -244,9 +244,12 @@ void PBFTClient::testSealing()
         clog(ClientWarn) << "As not test mode";
         return;
     }
-    bytes b = createConsensusData();
-    if(verify(b))
-        commit(b);
+    if(getTxNum() > 0)
+    {
+        bytes b = createConsensusData();
+        if(verify(b))
+            commit(b);
+    }
 }
 
 long PBFTClient::getTxNum()
