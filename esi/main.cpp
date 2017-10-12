@@ -15,15 +15,21 @@
 #include <libethcore/KeyManager.h>
 #include <libp2p/Host.h>
 #include <libp2p/Network.h>
-#include <libweb3jsonrpc/SessionManager.h>
-#include <libweb3jsonrpc/AccountHolder.h>
-#include <libweb3jsonrpc/EthFace.h>
-#include <libweb3jsonrpc/Eth.h>
-#include <libweb3jsonrpc/PersonalFace.h>
-#include <libweb3jsonrpc/Personal.h>
-#include <libweb3jsonrpc/NetFace.h>
-#include <libweb3jsonrpc/Net.h>
 #include <jsonrpccpp/server/connectors/httpserver.h>
+#include <libweb3jsonrpc/AccountHolder.h>
+#include <libweb3jsonrpc/Eth.h>
+#include <libweb3jsonrpc/SafeHttpServer.h>
+#include <libweb3jsonrpc/ModularServer.h>
+#include <libweb3jsonrpc/IpcServer.h>
+#include <libweb3jsonrpc/LevelDB.h>
+//#include <libweb3jsonrpc/Whisper.h>
+#include <libweb3jsonrpc/Net.h>
+#include <libweb3jsonrpc/Web3.h>
+#include <libweb3jsonrpc/AdminNet.h>
+#include <libweb3jsonrpc/AdminEth.h>
+#include <libweb3jsonrpc/AdminUtils.h>
+#include <libweb3jsonrpc/Personal.h>
+#include <libweb3jsonrpc/Debug.h>
 //#include <libesirpcserver/rpc_seal_server.h>
 //#include <libesirpcserver/rpc_net_server.h>
 //#include <libesirpcserver/rpc_core_server.h>
@@ -32,7 +38,6 @@
 #include <libesiwebthree/web_three.h>
 #include "genesis_info.h"
 
-namespace fs = boost::filesystem;
 using namespace std;
 using namespace dev;
 using namespace dev::eth;
@@ -42,6 +47,20 @@ using namespace p2p;
 using namespace rpc;
 using namespace genesis;
 using namespace pbft;
+namespace fs = boost::filesystem;
+
+class ExitHandler: public SystemManager
+{
+public:
+    void exit() { exitHandler(0); }
+    static void exitHandler(int) { should_exit = true; }
+    bool shouldExit() const { return should_exit; }
+
+private:
+    static bool should_exit;
+};
+
+bool ExitHandler::should_exit = false;
 
 void version()
 {
@@ -50,10 +69,28 @@ void version()
 
 int main(int argc, char** argv)
 {
+    //日志等级
+    g_logVerbosity = 8;
+    
     bool test_mode = false;
+    bool util_rpc = false;
+    bool admin_rpc = false;
+    
+    u256 ask_price = DefaultGasPrice;
+    u256 bid_price = DefaultGasPrice;
+    
+    string listen_ip;
+    unsigned short listen_port = 30303;
+    bool upnp = false;
+
+    int rpc_port = 8548;
+    int rpc_threads = 4;
+    string rpc_cors_domain = "";
+    
     string consensus_id = "";
     string peer_ips_ports[3];
     string peer_enodes[3];
+
     if(argc==2 && ((string(argv[1])=="--help") || (string(argv[1])=="--h")))
     {
         cout << "--c id(必输项，e.g.71)" << endl;
@@ -101,7 +138,6 @@ int main(int argc, char** argv)
             }
         }
     }
-    g_logVerbosity = 8;
     //向密封引擎注册商注册
     NoProof::init();
     BasicAuthority::init();
@@ -112,12 +148,7 @@ int main(int argc, char** argv)
     if(test_mode)
         cp.chainID = -1;
 
-    WithExisting we = WithExisting::Trust;
-
-    string listenIP;
-    unsigned short listenPort = 30303;
-    bool upnp = false;
-    auto net_prefs = NetworkPreferences(listenIP, listenPort, upnp);
+    auto net_prefs = NetworkPreferences(listen_ip, listen_port, upnp);
     net_prefs.discovery = false;
     net_prefs.pin = true;
 
@@ -126,33 +157,67 @@ int main(int argc, char** argv)
     //构造Host、Client、Consenter
     WebThreeConsensus wt(consensus_id, "ESI BLCOKCHAIN V0.1", cp, net_prefs, &hosts_state, getDataDir());
 
-    //RPC服务器端
-    jsonrpc::HttpServer *hs = new jsonrpc::HttpServer(8548, "", "", 4);
-    unique_ptr<ModularServer<>> rpc_server;
-
+    shared_ptr<eth::TrivialGasPricer> gp = make_shared<eth::TrivialGasPricer>(ask_price, bid_price);
+    
+    //创建密钥管理器
     KeyManager km;
-    unique_ptr<SessionManager> sm;
-    sm.reset(new SessionManager());
-    auto getPassword = [&](const string& prompt)
+    
+    auto get_password = [&](const string& prompt)
     {
         string ret = dev::getPassword(prompt);
         return ret;
     };
-    function<string(const Address&)> getAccountPassword = [&](const Address& a)
+    function<string(const Address&)> get_account_password = [&](const Address& a)
     {
-        return getPassword("Enter password for address " + km.accountName(a)
-        + " (" + a.abridged() + "; hint:" + km.passwordHint(a) + "): ");
+        return get_password("请输入账户" + km.accountName(a)
+        + "(账户地址: " + a.abridged() + ")的密码(密码提示: " + km.passwordHint(a) + "): ");
     };
     function<bool(const TransactionSkeleton&, bool)> authenticator
         = [](const TransactionSkeleton&, bool) -> bool { return true; };
+
+    //创建账户管理器
     unique_ptr<SimpleAccountHolder> ah(new SimpleAccountHolder(
-        [&](){return wt.client();}, getAccountPassword, km, authenticator));
+        [&](){return wt.client();}, get_account_password, km, authenticator));
+
+    unique_ptr<ExitHandler> eh(new ExitHandler());
+
+    //配置RPC服务器端
+    unique_ptr<SessionManager> sm;
+    sm.reset(new SessionManager());
+
+    auto *hs = new SafeHttpServer(rpc_port, "", "", rpc_threads);
+    hs->setAllowedOrigin(rpc_cors_domain);
+    unique_ptr<ModularServer<>> rpc_server;
 
     EthFace* eth = new Eth(*wt.client(), *ah.get());
-    PersonalFace* per = new Personal(km, *ah, *wt.client());
     NetFace* net = new Net(wt);
+    DBFace* db = nullptr;
+    Web3Face* w3 = nullptr;
+    DebugFace* dbg = nullptr;
+    //WhisperFace* wsp = nullptr;
+    PersonalFace* per = nullptr;
+    AdminEthFace* adm_eth = nullptr;
+    AdminNetFace* adm_net = nullptr;
+    AdminUtilsFace* adm_utl = nullptr;
 
-    rpc_server.reset(new ModularServer<EthFace, PersonalFace, NetFace>(eth, per, net));
+    if(test_mode)
+        per = new Personal(km, *ah, *wt.client());
+    if(util_rpc)
+    {
+        db = new LevelDB();
+        w3 = new Web3(wt.clientVersion());
+        dbg = new Debug(*wt.client());
+    }
+    if(admin_rpc)
+    {
+        adm_eth = new AdminEth(*wt.client(), *gp.get(), km, *sm.get());
+        adm_net = new AdminNet(wt, *sm.get());
+        adm_utl = new AdminUtils(*sm.get(), eh.get());
+    }
+
+    rpc_server.reset(new ModularServer<EthFace, NetFace, DBFace, Web3Face,
+        DebugFace, PersonalFace, AdminEthFace, AdminNetFace, AdminUtilsFace>
+        (eth, net, db, w3, dbg, per, adm_eth, adm_net, adm_utl));
     rpc_server->addConnector(hs);
     rpc_server->StartListening();
     
@@ -161,12 +226,15 @@ int main(int argc, char** argv)
     session_key = sm->newSession(SessionPermissions{{Privilege::Admin}});
     cout << "@会话密钥：" << session_key << endl;
     
+    //获取PBFT客户端
     PBFTClient* pclient = static_cast<PBFTClient*>(wt.client());
-    //区块链高度
+    
     cout << "@区块链高度：" << pclient->getHeight() << endl;
+    
+    bytes net_data;
     if(test_mode)
     {
-        while(1)
+        while(!eh->shouldExit())
             pclient->testSealing();
     }
     else
@@ -184,22 +252,29 @@ int main(int argc, char** argv)
                 wt.requirePeer(e, peer_ips_ports[x]);
             }
         }
-        auto netData = wt.saveNetwork();
-        if (!netData.empty())
-            writeFile(getDataDir()/fs::path("/network.rlp"), netData);
+        net_data = wt.saveNetwork();
+        if (!net_data.empty())
+            writeFile(getDataDir()/fs::path("/network.rlp"), net_data);
         
         wt.insertValidator("72");
         wt.insertValidator("71");
  
- 
         //开启共识
         while(wt.peerCount() < 1)//四个节点启动再开启
-                ;
+            ;
         cout << "@开启PBFT" <<endl;
         wt.startPBFT();
  
-        while(true);
+        while(!eh->shouldExit())
+            sleep(1);
     }
+    
+    if(rpc_server.get())
+        rpc_server->StopListening();
 
+    net_data = wt.saveNetwork();
+    if (!net_data.empty())
+        writeFile(getDataDir()/fs::path("/network.rlp"), net_data);
+    
     return 0;
 }
