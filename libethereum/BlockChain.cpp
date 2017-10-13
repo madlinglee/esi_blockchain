@@ -1635,3 +1635,7 @@ std::pair<Block, u256> BlockChain::getBlockCache(const h256& hash) const
     }
     return std::make_pair(Block(0), 0);
 }
+u256 BlockChain::filterCheck(const Transaction & _t, FilterCheckScene _checkscene) const
+{
+	return m_interface->filterCheck(_t, _checkscene);
+}

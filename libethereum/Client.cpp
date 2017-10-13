@@ -811,3 +811,12 @@ void Client::rewind(unsigned _n)
 	if (h)
 		h->reset();
 }
+u256 Client::filterCheck(const Transaction & _t, FilterCheckScene) const
+{
+
+	
+	if ( m_systemcontractapi )
+		return m_systemcontractapi->transactionFilterCheck(_t);
+	else
+		return (u256)SystemContractCode::Other;
+}

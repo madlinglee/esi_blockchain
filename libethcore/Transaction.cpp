@@ -30,7 +30,7 @@ using namespace std;
 using namespace dev;
 using namespace dev::eth;
 
-u256 TransactionBase::maxGas = 50000000;
+u256 TransactionBase::maxGas = 500000000;
 
 TransactionBase::TransactionBase(TransactionSkeleton const& _ts, Secret const& _s):
 	m_type(_ts.creation ? ContractCreation : MessageCall),

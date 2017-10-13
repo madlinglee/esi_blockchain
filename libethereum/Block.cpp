@@ -36,6 +36,7 @@
 #include "Executive.h"
 #include "TransactionQueue.h"
 #include "GenesisInfo.h"
+#include "SystemContractApi.h"
 using namespace std;
 using namespace dev;
 using namespace dev::eth;
@@ -934,4 +935,7 @@ void Block::commitAll()
         clog(StateTrace) << "Committed: stateRoot" << m_currentBlock.stateRoot() << "=" << rootHash() << "=" << toHex(asBytes(db().lookup(rootHash())));
 
     clog(StateTrace) << "finalising enactment. current -> previous, hash is" << m_previousBlock.hash();
+}
+void dev::eth::Block::clearCurrentBytes() {
+    m_currentBytes.clear();
 }
