@@ -55,7 +55,7 @@ class ExitHandler: public SystemManager
 {
 public:
     void exit() { exitHandler(0); }
-    static void exitHandler(int) { should_exit = true; }
+    static void exitHandler(int) {should_exit = true; }
     bool shouldExit() const { return should_exit; }
 
 private:
@@ -79,10 +79,10 @@ int help()
         << "--test                     开启本地测试模式" << endl
         << "--n <整数>                 设置共识节点数量，默认：4" << endl
         << "--c <字符串>               指定本共识节点ID" << endl
-        << "-p/--peerset <公钥@IP:端口号>" << endl
+        << "-p/--peerset <公钥@IP地址:端口号>" << endl
         << "                           连接共识节点" << endl
-        << "--public-ip <IP>           设置公共网络地址，默认：自动获取" << endl
-        << "--listen-ip <IP>           监听网络连接地址，默认：0.0.0.0" << endl
+        << "--public-ip <IP地址>           设置公共网络地址，默认：自动获取" << endl
+        << "--listen-ip <IP地址>           监听网络连接地址，默认：0.0.0.0" << endl
         << "--listen-port <端口号>     监听网络连接端口，默认：30303" << endl
         << "--no-upnp                  关闭UPNP" << endl
         << "--rpc-port <端口号>        指定RPC端口，默认：8548" << endl
@@ -159,6 +159,7 @@ int main(int argc, char** argv)
             if(key_host_port.size()!=2)
             {
                 cerr << "参数[" << arg << ": " << argv[i] << "]错误" << endl;
+                cerr << "正确示例：\n-p 公钥@IP地址:端口号" << endl;
                 return -1;
             }
             port = (uint16_t)atoi(key_host_port[1].c_str());
@@ -167,12 +168,14 @@ int main(int argc, char** argv)
             if(key_host.size()!=2)
             {
                 cerr << "参数[" << arg << ": " << argv[i] << "]错误" << endl;
+                cerr << "正确示例：\n-p 公钥@IP地址:端口号" << endl;
                 return -1;
             }
             pub = key_host[0];
             if(pub.size() != 128)
             {
                 cerr << "参数[" << arg << ": " << argv[i] << "]错误" << endl;
+                cerr << "正确示例：\n-p 公钥@IP地址:端口号" << endl;
                 return -1;
             }
             host = key_host[1];
@@ -184,6 +187,7 @@ int main(int argc, char** argv)
             catch(...)
             {
                 cerr << "参数[" << arg << ": " << argv[i] << "]错误" << endl;
+                cerr << "正确示例：\n-p 公钥@IP地址:端口号" << endl;
                 return -1; 
             }
         }
@@ -382,11 +386,9 @@ int main(int argc, char** argv)
 
     //配置RPC服务器端
     unique_ptr<ModularServer<>> rpc_server;
+    unique_ptr<SessionManager> sm;
     if(rpc_curl)
     {
-        unique_ptr<SessionManager> sm;
-        sm.reset(new SessionManager());
-
         auto *hs = new SafeHttpServer(rpc_port, "", "", SensibleHttpThreads);
         hs->setAllowedOrigin(rpc_cors_domain);
 
@@ -411,9 +413,13 @@ int main(int argc, char** argv)
         }
         if(rpc_admin)
         {
+            sm.reset(new SessionManager());
             adm_eth = new AdminEth(*wt.client(), *gp.get(), km, *sm.get());
             adm_net = new AdminNet(wt, *sm.get());
             adm_utl = new AdminUtils(*sm.get(), eh.get());
+            string session_key;
+            session_key = sm->newSession(SessionPermissions{{Privilege::Admin}});
+            cout << "@会话密钥：" << session_key << endl;
         }
 
         rpc_server.reset(new ModularServer<EthFace, NetFace, DBFace, Web3Face,
@@ -421,11 +427,7 @@ int main(int argc, char** argv)
             (eth, net, db, w3, dbg, per, adm_eth, adm_net, adm_utl));
         rpc_server->addConnector(hs);
         rpc_server->StartListening();
-        
         cout << "@RPC服务器端开启监听成功。" << endl;
-        string session_key;
-        session_key = sm->newSession(SessionPermissions{{Privilege::Admin}});
-        cout << "@会话密钥：" << session_key << endl;
     }
 
     //获取PBFT客户端
@@ -433,7 +435,6 @@ int main(int argc, char** argv)
     
     cout << "@区块链高度：" << pclient->getHeight() << endl;
     
-    bytes net_data;
     if(test_mode)
     {
         while(!eh->shouldExit())
@@ -448,19 +449,19 @@ int main(int argc, char** argv)
  
         for (auto const& p: nodes)
             wt.requirePeer(p.first, p.second);
-        net_data = wt.saveNetwork();
-        if(!net_data.empty())
-            writeFile(getDataDir()/fs::path("/network.rlp"), net_data);
         
         wt.insertValidator("72");
         wt.insertValidator("71");
  
         //开启共识
-        while(wt.peerCount() < node_quantity-1)//四个节点启动再开启
+        while((wt.peerCount() < node_quantity-1) && !eh->shouldExit())//四个节点启动再开启
             ;
-        cout << "@开启PBFT" <<endl;
-        wt.startPBFT();
- 
+        if(!eh->shouldExit())
+        {
+            cout << "@开启PBFT" <<endl;
+            wt.startPBFT();
+        }
+        
         while(!eh->shouldExit())
             sleep(1);
     }
@@ -468,6 +469,7 @@ int main(int argc, char** argv)
     if(rpc_server.get())
         rpc_server->StopListening();
 
+    bytes net_data;
     net_data = wt.saveNetwork();
     if (!net_data.empty())
         writeFile(getDataDir()/fs::path("/network.rlp"), net_data);
