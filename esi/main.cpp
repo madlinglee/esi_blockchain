@@ -17,6 +17,8 @@
 #include <libethcore/KeyManager.h>
 #include <libp2p/Host.h>
 #include <libp2p/Network.h>
+#include <libethereum/SnapshotImporter.h>
+#include <libethereum/SnapshotStorage.h>
 #include <jsonrpccpp/server/connectors/httpserver.h>
 #include <libweb3jsonrpc/AccountHolder.h>
 #include <libweb3jsonrpc/Eth.h>
@@ -51,6 +53,24 @@ using namespace genesis;
 using namespace pbft;
 namespace fs = boost::filesystem;
 
+/*区块操作模式*/
+enum class OperationMode
+{
+    Node,
+    Import,
+    ImportSnapshot,
+    Export
+};
+
+/*区块导出格式*/
+enum class Format
+{
+    Binary,
+    Hex,
+    Human
+};
+
+/*主程序退出管理器*/
 class ExitHandler: public SystemManager
 {
 public:
@@ -81,8 +101,8 @@ int help()
         << "--c <字符串>               指定本共识节点ID" << endl
         << "-p/--peerset <公钥@IP地址:端口号>" << endl
         << "                           连接共识节点" << endl
-        << "--public-ip <IP地址>           设置公共网络地址，默认：自动获取" << endl
-        << "--listen-ip <IP地址>           监听网络连接地址，默认：0.0.0.0" << endl
+        << "--public-ip <IP地址>       设置公共网络地址，默认：自动获取" << endl
+        << "--listen-ip <IP地址>       监听网络连接地址，默认：0.0.0.0" << endl
         << "--listen-port <端口号>     监听网络连接端口，默认：30303" << endl
         << "--no-upnp                  关闭UPNP" << endl
         << "--rpc-port <端口号>        指定RPC端口，默认：8548" << endl
@@ -93,9 +113,17 @@ int help()
         << "--kill-blockchain          删除区块链数据库" << endl
         << "--rebuild-blockchain       重构/恢复区块链数据库" << endl
         << "--rescue-blockchain        修复区块链数据库" << endl
-        << "-d/--db-path <目录名>      指定数据库路径" << endl
+        << "-d/--db-path <目录名>      指定数据库路径，默认：" << getDataDir() << endl
         << "--config <文件名>          读取JSON格式配置文件，包括创世块配置" << endl
         << "--genesis-config <文件名>  读取JSON格式创世块文件" << endl
+        << "-I/--import<文件名>        导入区块" << endl
+        << "-E/--export<文件名>        导出区块" << endl
+        << "--import-snapshot<文件名>  导入快照" << endl
+        << "--dont-check               取消导入检查" << endl
+        << "--from<高度/哈希>          指定导出区块的起始标识，默认：1" << endl
+        << "--to<高度/哈希>            指定导出区块的结束标识，默认：latest" << endl
+        << "--only<高度/哈希>          指定导出区块的唯一标识" << endl
+        << "--format<binary/hex/human> 指定导出区块的格式，默认：binary" << endl
         << "-v/--version               查看版本" << endl
         << "-h/--help                  查看帮助" << endl
         << EthReset;
@@ -123,6 +151,13 @@ int main(int argc, char** argv)
     bool rpc_curl = false;
     bool rpc_util = false;
     bool rpc_admin = false;
+
+    OperationMode mode = OperationMode::Node;
+    string file_name;
+    bool safe_import = false;//导入时需要验证
+    string export_from = "1";
+    string export_to = "latest";
+    Format export_format = Format::Binary;
 
     WithExisting we = WithExisting::Trust;
     ChainParams cp(genesis_info);
@@ -267,6 +302,52 @@ int main(int argc, char** argv)
                 return -1;
             }
         }
+        else if ((arg == "-I" || arg == "--import") && i + 1 < argc)
+        {
+            mode = OperationMode::Import;
+            file_name = argv[++i];
+        }
+        else if ((arg == "-E" || arg == "--export") && i + 1 < argc)
+        {
+            mode = OperationMode::Export;
+            file_name = argv[++i];
+        }
+        else if ((arg == "--import-snapshot") && i + 1 < argc)
+        {
+            mode = OperationMode::ImportSnapshot;
+            file_name = argv[++i];
+        }
+        else if (arg == "--dont-check")
+        {
+            safe_import = true;
+        }
+        else if (arg == "--to" && i + 1 < argc)
+        {    
+            export_to = argv[++i];
+        }
+        else if (arg == "--from" && i + 1 < argc)
+        {
+            export_from = argv[++i];
+        }
+        else if (arg == "--only" && i + 1 < argc)
+        {
+            export_to = export_from = argv[++i];
+        }
+        else if (arg == "--format" && i + 1 < argc)
+        {
+            string m = argv[++i];
+            if (m == "binary")
+                export_format = Format::Binary;
+            else if (m == "hex")
+                export_format = Format::Hex;
+            else if (m == "human")
+                export_format = Format::Human;
+            else
+            {
+                cerr << "参数[" << arg << ": " << m << "]错误" << endl;
+                return -1;
+            }
+        }
         else if (arg == "-v" || arg == "--version")
         {
             return version();
@@ -356,7 +437,116 @@ int main(int argc, char** argv)
     u256 ask_price = DefaultGasPrice;
     u256 bid_price = DefaultGasPrice;
     shared_ptr<eth::TrivialGasPricer> gp = make_shared<eth::TrivialGasPricer>(ask_price, bid_price);
+
+    auto to_number = [&](string const& s) -> unsigned {
+        if (s == "latest")
+            return wt.client()->number();
+        if (s.size() == 64 || (s.size() == 66 && s.substr(0, 2) == "0x"))
+            return wt.client()->blockChain().number(h256(s));
+        try {
+            return stol(s);
+        }
+        catch (...)
+        {
+            cerr << "区块高度/哈希错误：" << s << "\n";
+            return -1;
+        }
+    };
+    if (mode == OperationMode::Export)
+    {
+        ofstream fout(file_name, std::ofstream::binary);
+        ostream& out = (file_name.empty() || file_name == "--") ? cout : fout;
+
+        unsigned last = to_number(export_to);
+        for (unsigned i = to_number(export_from); i <= last; ++i)
+        {
+            bytes block = wt.client()->blockChain().block(wt.client()->blockChain().numberHash(i));
+            switch (export_format)
+            {
+                case Format::Binary: out.write((char const*)block.data(), block.size()); break;
+                case Format::Hex: out << toHex(block) << "\n"; break;
+                case Format::Human: out << RLP(block) << "\n"; break;
+                default:;
+            }
+        }
+        return 0;
+    }
+
+    if (mode == OperationMode::Import)
+    {
+        ifstream fin(file_name, std::ifstream::binary);
+        istream& in = (file_name.empty() || file_name == "--") ? cin : fin;
+        unsigned already_have = 0;
+        unsigned good = 0;
+        unsigned future_time = 0;
+        unsigned unknown_parent = 0;
+        unsigned bad = 0;
+        chrono::steady_clock::time_point t = chrono::steady_clock::now();
+        double last = 0;
+        unsigned last_imported = 0;
+        unsigned imported = 0;
+        while (in.peek() != -1)
+        {
+            bytes block(8);
+            in.read((char*)block.data(), 8);
+            block.resize(RLP(block, RLP::LaissezFaire).actualSize());
+            in.read((char*)block.data() + 8, block.size() - 8);
+
+            switch (wt.client()->queueBlock(block, safe_import))
+            {
+                case ImportResult::Success: good++; break;
+                case ImportResult::AlreadyKnown: already_have++; break;
+                case ImportResult::UnknownParent: unknown_parent++; break;
+                case ImportResult::FutureTimeUnknown: unknown_parent++; future_time++; break;
+                case ImportResult::FutureTimeKnown: future_time++; break;
+                default: bad++; break;
+            }
+
+            // sync chain with queue
+            tuple<ImportRoute, bool, unsigned> r = wt.client()->syncQueue(10);
+            imported += get<2>(r);
+
+            double e = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - t).count() / 1000.0;
+            if ((unsigned)e >= last + 10)
+            {
+                auto i = imported - last_imported;
+                auto d = e - last;
+                cout << "较上次多导入" << i << "块，速度：" << (round(i * 10 / d) / 10) << " 块/s，本次共" << imported << "块导入，用时：" << e << "s，速度：" << (round(imported * 10 / e) / 10) << "块/s (#" << wt.client()->number() << ")" << "\n";
+                last = (unsigned)e;
+                last_imported = imported;
+            }
+        }
+
+        bool more_to_import = true;
+        while (more_to_import)
+        {
+            this_thread::sleep_for(chrono::seconds(1));
+            tie(ignore, more_to_import, ignore) = wt.client()->syncQueue(100000);
+        }
+        double e = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - t).count() / 1000.0;
+        cout << imported << "块导入用时：" << e << "s，速度：" << (round(imported * 10 / e) / 10) << "块/s (#" << wt.client()->number() << ")\n";
+        return 0;
+    }
     
+    if (mode == OperationMode::ImportSnapshot)
+    {
+        try
+        {
+            auto state_importer = wt.client()->createStateImporter();
+            auto block_chain_importer = wt.client()->createBlockChainImporter();
+            SnapshotImporter importer(*state_importer, *block_chain_importer);
+
+            auto snapshot_storage(createSnapshotStorage(file_name));
+            importer.import(*snapshot_storage);
+            // continue with regular sync from the snapshot block
+        }
+        catch (...)
+        {
+            cerr << "导入快照出错：" << boost::current_exception_diagnostic_information() << endl;
+            return -1;
+        }
+    }
+
     //创建密钥管理器
     fs::path secrets_path;
     if (test_mode)
