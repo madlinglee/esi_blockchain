@@ -233,6 +233,8 @@ public:
 	/// Get the seal engine.
 	virtual SealEngineFace* sealEngine() const { return nullptr; }
     virtual u256 filterCheck(const Transaction & _t,FilterCheckScene _checkscene=FilterCheckScene::None) const =0;
+    virtual void    updateSystemContract(std::shared_ptr<Block>) =0;
+    virtual void updateCache(Address ){}
 protected:
 	int m_default = PendingBlock;
 };

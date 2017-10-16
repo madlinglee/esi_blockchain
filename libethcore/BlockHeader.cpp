@@ -33,6 +33,7 @@ using namespace dev;
 using namespace dev::eth;
 
 u256 BlockHeader::maxGas = 100000000000;
+u256 BlockHeader::maxBlockHeadGas = 200000000; 
 
 BlockHeader::BlockHeader()
 {

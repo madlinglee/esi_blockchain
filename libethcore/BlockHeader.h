@@ -98,6 +98,7 @@ class BlockHeader
 	friend class BlockChain;
 public:
     static u256 maxGas;
+    static u256 maxBlockHeadGas;//块最大gas
 	static const unsigned BasicFields = 13;
 
 	BlockHeader();

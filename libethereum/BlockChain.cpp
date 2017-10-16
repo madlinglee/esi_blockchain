@@ -45,6 +45,8 @@ using namespace dev;
 using namespace dev::eth;
 namespace fs = boost::filesystem;
 
+u256 BlockChain::maxBlockLimit = 1000;
+
 #define ETH_TIMED_IMPORTS 1
 
 namespace
@@ -195,12 +197,13 @@ static const unsigned c_minCacheSize = 1024 * 1024 * 32;
 
 #endif
 
-BlockChain::BlockChain(ChainParams const& _p, fs::path const& _dbPath, WithExisting _we, ProgressCallback const& _pc):
+BlockChain::BlockChain(std::shared_ptr<Interface> _interface, ChainParams const& _p, fs::path const& _dbPath, WithExisting _we, ProgressCallback const& _pc):
 	m_lastBlockHashes(new LastBlockHashes(*this)),
 	m_dbPath(_dbPath)
 {
 	init(_p);
 	open(_dbPath, _we, _pc);
+    m_interface = _interface;
 }
 
 BlockChain::~BlockChain()
@@ -742,7 +745,9 @@ ImportRoute BlockChain::import(VerifiedBlockRef const& _block, OverlayDB const& 
 
 	// All ok - insert into DB
 	bytes const receipts = br.rlp();
-	return insertBlockAndExtras(_block, ref(receipts), td, performanceLogger);
+	auto ret =  insertBlockAndExtras(_block, ref(receipts), td, performanceLogger);
+    this->updateSystemContract(tb);
+    return ret;
 }
 
 ImportRoute BlockChain::insertWithoutParent(bytes const& _block, bytesConstRef _receipts, u256 const& _totalDifficulty)
@@ -943,6 +948,7 @@ ImportRoute BlockChain::insertBlockAndExtras(VerifiedBlockRef const& _block, byt
 #endif // ETH_PARANOIA
 
 	if (m_lastBlockHash != newLastBlockHash)
+    {
 		DEV_WRITE_GUARDED(x_lastBlockHash)
 		{
 			m_lastBlockHash = newLastBlockHash;
@@ -956,6 +962,7 @@ ImportRoute BlockChain::insertBlockAndExtras(VerifiedBlockRef const& _block, byt
 				exit(-1);
 			}
 		}
+    }
 
 #if ETH_PARANOIA
 	checkConsistency();
@@ -1638,4 +1645,13 @@ std::pair<Block, u256> BlockChain::getBlockCache(const h256& hash) const
 u256 BlockChain::filterCheck(const Transaction & _t, FilterCheckScene _checkscene) const
 {
 	return m_interface->filterCheck(_t, _checkscene);
+}
+void    BlockChain::updateSystemContract(std::shared_ptr<Block> block)
+{
+        m_interface->updateSystemContract(block);
+}
+
+void BlockChain::updateCache(Address address) const 
+{
+        m_interface->updateCache(address);
 }

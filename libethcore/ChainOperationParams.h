@@ -94,6 +94,9 @@ public:
 	int chainID = 0; // Distinguishes different chains (mainnet, Ropsten, etc).
 	int networkID = 0; // Distinguishes different sub protocols.
 
+    Address sysytemProxyAddress;//系统代理合约地址
+    Address god;//上帝帐号
+
 	u256 minimumDifficulty;
 	u256 difficultyBoundDivisor;
 	u256 durationLimit;

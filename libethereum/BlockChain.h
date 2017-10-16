@@ -110,9 +110,10 @@ public:
 class BlockChain
 {
 public:
+    static u256 maxBlockLimit;
 	/// Doesn't open the database - if you want it open it's up to you to subclass this and open it
 	/// in the constructor there.
-	BlockChain(ChainParams const& _p, boost::filesystem::path const& _path, WithExisting _we = WithExisting::Trust, ProgressCallback const& _pc = ProgressCallback());
+	BlockChain(std::shared_ptr<Interface> _interface, ChainParams const& _p, boost::filesystem::path const& _path, WithExisting _we = WithExisting::Trust, ProgressCallback const& _pc = ProgressCallback());
 	~BlockChain();
 
     void addBlockCache(Block block, u256 td) const;
@@ -330,8 +331,8 @@ public:
     //bool isNonceOk(Transaction const&_ts, bool _needinsert = false) const ;
 
     u256 filterCheck(const Transaction & _t, FilterCheckScene _checkscene = FilterCheckScene::None) const ;
-    //void    updateSystemContract(std::shared_ptr<Block> block);
-    //void updateCache(Address address)const;
+    void    updateSystemContract(std::shared_ptr<Block> block);
+    void updateCache(Address address)const;
 
     //static u256 maxBlockLimit;
 
