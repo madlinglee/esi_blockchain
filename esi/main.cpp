@@ -95,63 +95,79 @@ int version()
 int help()
 {
     cout << EthRed
-        << "--verbosity <0-21>         设置日志等级，默认：8" << endl
-        << "--test                     开启本地测试模式" << endl
-        << "--n <整数>                 设置共识节点数量，默认：4" << endl
-        << "--c <字符串>               指定本共识节点ID" << endl
+        << "--verbosity <0-21>          设置日志等级，默认：8" << endl
+        << "--test                      开启本地测试模式" << endl
+        << "--n <整数>                  设置共识节点数量，默认：4" << endl
+        << "--c <字符串>                指定本共识节点ID" << endl
         << "-p/--peerset <公钥@IP地址:端口号>" << endl
-        << "                           连接共识节点" << endl
-        << "--public-ip <IP地址>       设置公共网络地址，默认：自动获取" << endl
-        << "--listen-ip <IP地址>       监听网络连接地址，默认：0.0.0.0" << endl
-        << "--listen-port <端口号>     监听网络连接端口，默认：30303" << endl
-        << "--no-upnp                  关闭UPNP" << endl
-        << "--rpc-port <端口号>        指定RPC端口，默认：8548" << endl
-        << "--rpccorsdomain <域名>     跨域访问" << endl
-        << "-j/--json-rpc              启动RPC服务器，提供基础RPC服务" << endl
-        << "--util-rpc                 提供工具类RPC服务" << endl
-        << "--admin-rpc                提供管理员权限类RPC服务" << endl
-        << "--kill-blockchain          删除区块链数据库" << endl
-        << "--rebuild-blockchain       重构/恢复区块链数据库" << endl
-        << "--rescue-blockchain        修复区块链数据库" << endl
-        << "-d/--db-path <目录名>      指定数据库路径，默认：" << getDataDir() << endl
-        << "--config <文件名>          读取JSON格式配置文件，包括创世块配置" << endl
-        << "--genesis-config <文件名>  读取JSON格式创世块文件" << endl
-        << "-I/--import<文件名>        导入区块" << endl
-        << "-E/--export<文件名>        导出区块" << endl
-        << "--import-snapshot<文件名>  导入快照" << endl
-        << "--dont-check               取消导入检查" << endl
-        << "--from<高度/哈希>          指定导出区块的起始标识，默认：1" << endl
-        << "--to<高度/哈希>            指定导出区块的结束标识，默认：latest" << endl
-        << "--only<高度/哈希>          指定导出区块的唯一标识" << endl
-        << "--format<binary/hex/human> 指定导出区块的格式，默认：binary" << endl
-        << "-v/--version               查看版本" << endl
-        << "-h/--help                  查看帮助" << endl
+        << "                            连接共识节点" << endl
+        << "--public-ip <IP地址>        设置公共网络地址，默认：自动获取" << endl
+        << "--listen-ip <IP地址>        监听网络连接地址，默认：0.0.0.0" << endl
+        << "--listen-port <端口号>      监听网络连接端口，默认：30303" << endl
+        << "--no-upnp                   关闭UPNP" << endl
+        << "--rpc-port <端口号>         指定RPC端口，默认：8548" << endl
+        << "--rpccorsdomain <域名>      跨域访问" << endl
+        << "-j/--json-rpc               启动RPC服务器，提供基础RPC服务" << endl
+        << "--util-rpc                  提供工具类RPC服务" << endl
+        << "--admin-rpc                 提供管理员权限类RPC服务" << endl
+        << "--kill-blockchain           删除区块链数据库" << endl
+        << "--rebuild-blockchain        重构/恢复区块链数据库" << endl
+        << "--rescue-blockchain         修复区块链数据库" << endl
+        << "-d/--db-path <目录名>       指定数据库路径，默认：" << getDataDir() << endl
+        << "--config <文件名>           读取JSON格式配置文件，包括创世块配置" << endl
+        << "--genesis-config <文件名>   读取JSON格式创世块文件" << endl
+        << "--master <密码>             指定密钥管理器的主密码，即钱包密码，默认：空" << endl
+        << "--password <密码>           缓存密码" << endl
+        << "-s/--import-secret <私钥>   导入私钥" << endl
+        << "-I/--import <文件名>        导入区块" << endl
+        << "-E/--export <文件名>        导出区块" << endl
+        << "--import-snapshot <文件名>  导入快照" << endl
+        << "--dont-check                取消导入检查" << endl
+        << "--from <高度/哈希>          指定导出区块的起始标识，默认：1" << endl
+        << "--to <高度/哈希>            指定导出区块的结束标识，默认：latest" << endl
+        << "--only <高度/哈希>          指定导出区块的唯一标识" << endl
+        << "--format <binary/hex/human> 指定导出区块的格式，默认：binary" << endl
+        << "-v/--version                查看版本" << endl
+        << "-h/--help                   查看帮助" << endl
         << EthReset;
     return 1;
 }
 
 int main(int argc, char** argv)
 {
-    //日志等级
+    /*日志等级*/
     g_logVerbosity = 8;
     
+    /*本地测试/网络连接*/
     bool test_mode = false;
     
-    unsigned int node_quantity = 4;//TODO 
-    string consensus_id = "";
+    /*节点连接列表*/
     map<NodeID, NodeIPEndpoint> nodes;
 
+    /*PBFT*/
+    unsigned int node_quantity = 4;//TODO 
+    string consensus_id = "";
+    
+    /*P2P*/
     string public_ip;
     string listen_ip;
     unsigned short listen_port = 30303;
     bool upnp = true;
 
+    /*RPC*/
     int rpc_port = 8548;
     string rpc_cors_domain = "";
     bool rpc_curl = false;
     bool rpc_util = false;
     bool rpc_admin = false;
 
+    /*钱包/密钥管理器、私钥与密码*/
+    string master_password;
+    bool master_set = false;
+    strings passwords_to_note;
+    Secrets to_import;
+
+    /*区块导入与导出*/
     OperationMode mode = OperationMode::Node;
     string file_name;
     bool safe_import = false;//导入时需要验证
@@ -159,11 +175,13 @@ int main(int argc, char** argv)
     string export_to = "latest";
     Format export_format = Format::Binary;
 
+    /*链操作参数*/
     WithExisting we = WithExisting::Trust;
     ChainParams cp(genesis_info);
     string json_config;
     string json_genesis;
     
+    /*解析CLI/命令行参数*/
     for(int i = 1; i < argc; ++i)
     {
         string arg = argv[i];
@@ -302,6 +320,20 @@ int main(int argc, char** argv)
                 return -1;
             }
         }
+        else if (arg == "--master" && i + 1 < argc)
+        {
+            master_password = argv[++i];
+            master_set = true;
+        }
+        else if (arg == "--password" && i + 1 < argc)
+        {
+            passwords_to_note.push_back(argv[++i]);
+        }
+        else if ((arg == "-s" || arg == "--import-secret") && i + 1 < argc)
+        {
+            Secret s(fromHex(argv[++i]));
+            to_import.emplace_back(s);
+        }
         else if ((arg == "-I" || arg == "--import") && i + 1 < argc)
         {
             mode = OperationMode::Import;
@@ -372,11 +404,11 @@ int main(int argc, char** argv)
         }
     }
 
-    //向密封引擎注册商注册
+    /*注册密封引擎*/
     NoProof::init();
     BasicAuthority::init();
 
-    //重置链操作参数
+    /*重置链操作参数*/
     if(!json_config.empty())
     {
         try
@@ -417,27 +449,27 @@ int main(int argc, char** argv)
         }
     }
 
-    //允许未来区块
+    /*允许未来区块*/
     cp.allowFutureBlocks = true;
 
     if(test_mode)
         cp.chainID = -1;
 
+    u256 ask_price = DefaultGasPrice;
+    u256 bid_price = DefaultGasPrice;
+    shared_ptr<eth::TrivialGasPricer> gp = make_shared<eth::TrivialGasPricer>(ask_price, bid_price);
+
+    /*构造Host、Client、Consenter*/
     auto net_prefs = public_ip.empty()? 
         NetworkPreferences(public_ip, listen_ip, listen_port, upnp):
         NetworkPreferences(listen_ip, listen_port, upnp);
     net_prefs.discovery = false;
     net_prefs.pin = true;
-
     auto hosts_state = contents(getDataDir()/fs::path( "network.rlp"));
 
-    //构造Host、Client、Consenter
     WebThreeConsensus wt(consensus_id, ver, cp, net_prefs, &hosts_state, getDataDir(), we);
 
-    u256 ask_price = DefaultGasPrice;
-    u256 bid_price = DefaultGasPrice;
-    shared_ptr<eth::TrivialGasPricer> gp = make_shared<eth::TrivialGasPricer>(ask_price, bid_price);
-
+    /*区块导入与导出*/
     auto to_number = [&](string const& s) -> unsigned {
         if (s == "latest")
             return wt.client()->number();
@@ -471,7 +503,6 @@ int main(int argc, char** argv)
         }
         return 0;
     }
-
     if (mode == OperationMode::Import)
     {
         ifstream fin(file_name, std::ifstream::binary);
@@ -516,7 +547,6 @@ int main(int argc, char** argv)
                 last_imported = imported;
             }
         }
-
         bool more_to_import = true;
         while (more_to_import)
         {
@@ -527,7 +557,6 @@ int main(int argc, char** argv)
         cout << imported << "块导入用时：" << e << "s，速度：" << (round(imported * 10 / e) / 10) << "块/s (#" << wt.client()->number() << ")\n";
         return 0;
     }
-    
     if (mode == OperationMode::ImportSnapshot)
     {
         try
@@ -547,13 +576,56 @@ int main(int argc, char** argv)
         }
     }
 
-    //创建密钥管理器
+    /*创建密钥管理器*/
     fs::path secrets_path;
     if (test_mode)
         secrets_path = (boost::filesystem::path(getDataDir()) / "keystore");
     else
         secrets_path = SecretStore::defaultPath();
     KeyManager km(KeyManager::defaultPath(), secrets_path);
+    for (auto const& s: passwords_to_note)
+        km.notePassword(s);
+    try
+    {
+        if (km.exists())
+        {
+            //if (!km.load(master_password) && master_set)
+            if (!km.load(master_password))//主密码为空，也必须输入实际密码
+            {
+                short ct = 0;
+                while (ct<3)
+                {
+                    master_password = getPassword("请输入钱包/主密码：");
+                    if (km.load(master_password))
+                        break;
+                    ct++;
+                    if(ct!=3)
+                        cout << "密码错误"<<"\n";
+                    else
+                    {
+                        cout << "密码错误，若想强制启动，可以选择手动删除钱包文件：" << (getDataDir("ethereum") / fs::path("keys.info")).string() << "\n";
+                        return -1;
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (master_set)
+                km.create(master_password);
+            else
+                km.create(std::string());
+        }
+    }
+    catch(...)
+    {
+        cerr << "密钥管理器初始化异常：" << boost::current_exception_diagnostic_information() << "\n";
+        return -1;
+    }
+    for (auto const& s: to_import)
+    {
+        km.import(s, "via CLI");
+    }
     
     auto get_password = [&](const string& prompt)
     {
@@ -563,18 +635,17 @@ int main(int argc, char** argv)
     function<string(const Address&)> get_account_password = [&](const Address& a)
     {
         return get_password("请输入账户" + km.accountName(a)
-        + "(账户地址: " + a.abridged() + ")的密码(密码提示: " + km.passwordHint(a) + "): ");
+        + "(账户地址: " + a.abridged() + ")密码(密码提示: " + km.passwordHint(a) + "): ");
     };
     function<bool(const TransactionSkeleton&, bool)> authenticator
         = [](const TransactionSkeleton&, bool) -> bool { return true; };
 
-    //创建账户管理器
     unique_ptr<SimpleAccountHolder> ah(new SimpleAccountHolder(
         [&](){return wt.client();}, get_account_password, km, authenticator));
 
     unique_ptr<ExitHandler> eh(new ExitHandler());
 
-    //配置RPC服务器端
+    /*配置RPC服务器端*/
     unique_ptr<ModularServer<>> rpc_server;
     unique_ptr<SessionManager> sm;
     if(rpc_curl)
@@ -609,7 +680,7 @@ int main(int argc, char** argv)
             adm_utl = new AdminUtils(*sm.get(), eh.get());
             string session_key;
             session_key = sm->newSession(SessionPermissions{{Privilege::Admin}});
-            cout << "@会话密钥：" << session_key << endl;
+            cout << "会话密钥：" << session_key << endl;
         }
 
         rpc_server.reset(new ModularServer<EthFace, NetFace, DBFace, Web3Face,
@@ -617,13 +688,13 @@ int main(int argc, char** argv)
             (eth, net, db, w3, dbg, per, adm_eth, adm_net, adm_utl));
         rpc_server->addConnector(hs);
         rpc_server->StartListening();
-        cout << "@RPC服务器端开启监听成功。" << endl;
+        cout << "RPC服务器端监听成功" << endl;
     }
 
-    //获取PBFT客户端
+    /*获取PBFT客户端并启动挖矿*/
     PBFTClient* pclient = static_cast<PBFTClient*>(wt.client());
     
-    cout << "@区块链高度：" << pclient->getHeight() << endl;
+    cout << "区块链高度：#" << pclient->getHeight() << endl;
     
     if(test_mode)
     {
@@ -648,7 +719,7 @@ int main(int argc, char** argv)
             ;
         if(!eh->shouldExit())
         {
-            cout << "@开启PBFT" <<endl;
+            cout << "开启PBFT" <<endl;
             wt.startPBFT();
         }
         
@@ -656,9 +727,11 @@ int main(int argc, char** argv)
             sleep(1);
     }
     
+    /*停止RPC服务*/
     if(rpc_server.get())
         rpc_server->StopListening();
 
+    /*保存节点、连接配置*/
     bytes net_data;
     net_data = wt.saveNetwork();
     if (!net_data.empty())
