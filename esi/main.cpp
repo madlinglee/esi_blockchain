@@ -88,13 +88,17 @@ const string ver = "ESI BlockChain V0.1";
 
 int version()
 {
-    cout << EthRed << ver << " dev. via Eth." << EthReset << endl;
+    cout << EthRed
+        << ver << " dev. via Eth." << endl
+        << "网络协议版本：" << dev::eth::c_protocolVersion << endl
+        << "数据库版本：" << dev::eth::c_databaseVersion << endl
+        << EthReset;
     return 1;
 }
 
 int help()
 {
-    cout << EthRed
+    cout << EthMaroon
         << "--verbosity <0-21>          设置日志等级，默认：8" << endl
         << "--test                      开启本地测试模式" << endl
         << "--n <整数>                  设置共识节点数量，默认：4" << endl
@@ -387,6 +391,7 @@ int main(int argc, char** argv)
         else if (arg == "-h" || arg == "--help")
         {
             version();
+            cout << endl;
             return help();
         }
         else
