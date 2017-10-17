@@ -49,6 +49,7 @@ WebThreeDirect::WebThreeDirect(
 	m_clientVersion(_clientVersion),
 	m_net(_clientVersion, _n, _network)
 {
+/*
 	if (_dbPath.size())
 		Defaults::setDBPath(_dbPath);
 	if (_interfaces.count("eth"))
@@ -72,6 +73,7 @@ WebThreeDirect::WebThreeDirect(
 
 	if (_interfaces.count("shh"))
 		m_whisper = m_net.registerCapability(make_shared<WhisperHost>());
+        */
 }
 
 WebThreeDirect::~WebThreeDirect()

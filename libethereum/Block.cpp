@@ -36,6 +36,7 @@
 #include "Executive.h"
 #include "TransactionQueue.h"
 #include "GenesisInfo.h"
+#include "SystemContractApi.h"
 using namespace std;
 using namespace dev;
 using namespace dev::eth;
@@ -334,6 +335,16 @@ pair<TransactionReceipts, bool> Block::sync(BlockChain const& _bc, TransactionQu
 			{
 				try
 				{
+                    ++goodTxs;
+                    u256 check = _bc.filterCheck(t, FilterCheckScene::PackTranscation);
+                    if ( (u256)SystemContractCode::Ok != check  )
+                    {
+                            LOG(WARNING) << "Block::sync " << t.sha3() << " transition filterCheck PackTranscation Fail" << check;
+                            BOOST_THROW_EXCEPTION(FilterCheckFail());
+                    }
+                    execute(_bc.lastBlockHashes(), t);
+                    ret.first.push_back(m_receipts.back());
+                        /*
 					if (t.gasPrice() >= _gp.ask(*this))
 					{
 //						Timer t;
@@ -347,7 +358,13 @@ pair<TransactionReceipts, bool> Block::sync(BlockChain const& _bc, TransactionQu
 						clog(StateTrace) << t.sha3() << "Dropping El Cheapo transaction (<90% of ask price)";
 						_tq.drop(t.sha3());
 					}
+                    */
 				}
+                catch ( FilterCheckFail const& in)
+                {
+                        LOG(WARNING) << t.sha3() << "Block::sync Dropping  transaction (filter check fail!)";
+                        _tq.drop(t.sha3());
+                }
 				catch (InvalidNonce const& in)
 				{
 					bigint const& req = *boost::get_error_info<errinfo_required>(in);
@@ -934,4 +951,7 @@ void Block::commitAll()
         clog(StateTrace) << "Committed: stateRoot" << m_currentBlock.stateRoot() << "=" << rootHash() << "=" << toHex(asBytes(db().lookup(rootHash())));
 
     clog(StateTrace) << "finalising enactment. current -> previous, hash is" << m_previousBlock.hash();
+}
+void dev::eth::Block::clearCurrentBytes() {
+    m_currentBytes.clear();
 }

@@ -29,6 +29,7 @@
 #include "State.h"
 #include "Transaction.h"
 #include "VerifiedBlock.h"
+#include "Interface.h"
 #include <libdevcore/db.h>
 #include <libdevcore/Exceptions.h>
 #include <libdevcore/Log.h>
@@ -109,9 +110,10 @@ public:
 class BlockChain
 {
 public:
+    static u256 maxBlockLimit;
 	/// Doesn't open the database - if you want it open it's up to you to subclass this and open it
 	/// in the constructor there.
-	BlockChain(ChainParams const& _p, boost::filesystem::path const& _path, WithExisting _we = WithExisting::Trust, ProgressCallback const& _pc = ProgressCallback());
+	BlockChain(std::shared_ptr<Interface> _interface, ChainParams const& _p, boost::filesystem::path const& _path, WithExisting _we = WithExisting::Trust, ProgressCallback const& _pc = ProgressCallback());
 	~BlockChain();
 
     void addBlockCache(Block block, u256 td) const;
@@ -325,6 +327,22 @@ public:
 	/// Change the chain start block.
 	void setChainStartBlockNumber(unsigned _number);
 
+    //bool isBlockLimitOk(Transaction const&_ts) const ;
+    //bool isNonceOk(Transaction const&_ts, bool _needinsert = false) const ;
+
+    u256 filterCheck(const Transaction & _t, FilterCheckScene _checkscene = FilterCheckScene::None) const ;
+    void    updateSystemContract(std::shared_ptr<Block> block);
+    void updateCache(Address address)const;
+
+    //static u256 maxBlockLimit;
+
+    //void checkBlockValid(h256 const& _head, bytes const& _block, OverlayDB const& _db) const;
+
+
+    //void addBlockCache(Block block, u256 td) const;
+
+    //std::pair<Block, u256> getBlockCache(h256 const& hash) const;
+
 private:
 	static h256 chunkId(unsigned _level, unsigned _index) { return h256(_index * 0xff + _level); }
 
@@ -430,6 +448,11 @@ private:
     mutable std::map<h256, std::pair<Block, u256>> m_blockCache;
 	
     boost::filesystem::path m_dbPath;
+
+    std::shared_ptr<Interface> m_interface;
+
+    mutable Mutex x_lastLastHashes;
+    mutable LastHashes m_lastLastHashes;
 
 	friend std::ostream& operator<<(std::ostream& _out, BlockChain const& _bc);
 };

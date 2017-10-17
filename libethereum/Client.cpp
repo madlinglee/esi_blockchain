@@ -69,13 +69,20 @@ Client::Client(
 ):
 	ClientBase(_l),
 	Worker("eth", 0),
-	m_bc(_params, _dbPath, _forceAction, [](unsigned d, unsigned t){ std::cerr << "REVISING BLOCKCHAIN: Processed " << d << " of " << t << "...\r"; }),
+	m_bc(std::shared_ptr<Interface>(this), _params, _dbPath, _forceAction, [](unsigned d, unsigned t){ std::cerr << "REVISING BLOCKCHAIN: Processed " << d << " of " << t << "...\r"; }),
 	m_gp(_gpForAdoption ? _gpForAdoption : make_shared<TrivialGasPricer>()),
 	m_preSeal(chainParams().accountStartNonce),
 	m_postSeal(chainParams().accountStartNonce),
 	m_working(chainParams().accountStartNonce)
 {
 	init(_host, _dbPath, _forceAction, _networkID);
+    //创建系统合约api
+    m_systemcontractapi = SystemContractApiFactory::create(_params.sysytemProxyAddress, _params.god, this);
+    updateConfig();
+    //注册回调
+    m_systemcontractapi->addCBOn("config", [ this ](string) {
+                    updateConfig();
+                    });
 }
 
 Client::~Client()
@@ -802,12 +809,74 @@ void Client::rewind(unsigned _n)
 	{
 		u256 n;
 		DEV_READ_GUARDED(x_working)
-			n = m_working.info().number();
-		if (n == _n + 1)
-			break;
-		this_thread::sleep_for(std::chrono::milliseconds(50));
-	}
-	auto h = m_host.lock();
-	if (h)
-		h->reset();
+                n = m_working.info().number();
+        if (n == _n + 1)
+                break;
+        this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    auto h = m_host.lock();
+    if (h)
+            h->reset();
+}
+u256 Client::filterCheck(const Transaction & _t, FilterCheckScene) const
+{
+
+
+        if ( m_systemcontractapi )
+                return m_systemcontractapi->transactionFilterCheck(_t);
+        else
+                return (u256)SystemContractCode::Other;
+}
+void Client::updateSystemContract(std::shared_ptr<Block> block)
+{
+        m_systemcontractapi->updateSystemContract(block);
+}
+
+void Client::updateCache(Address address) {
+        m_systemcontractapi->updateCache(address);
+}
+
+void Client::updateConfig() 
+{
+        string value;
+
+        m_systemcontractapi->getValue("maxBlockTranscations", value);
+        u256 uvalue = 0;
+        uvalue = u256(fromBigEndian<u256>(fromHex(value)));
+        if ( uvalue < 1000 )
+                uvalue = 1000;
+        m_maxBlockTranscations = uvalue;
+
+        value = "";
+        m_systemcontractapi->getValue("maxBlockHeadGas", value);
+        uvalue = u256(fromBigEndian<u256>(fromHex(value)));
+        if ( uvalue < 200000000 )
+                uvalue = 200000000;
+        BlockHeader::maxBlockHeadGas = uvalue;
+
+        value = "";
+        m_systemcontractapi->getValue("maxTranscationGas", value);
+        uvalue = u256(fromBigEndian<u256>(fromHex(value)));
+        if ( uvalue < 20000000 )
+                uvalue = 20000000;
+        TransactionBase::maxGas = uvalue;
+
+        value = "";
+        m_systemcontractapi->getValue("maxNonceCheckBlock", value);
+        uvalue = u256(fromBigEndian<u256>(fromHex(value)));
+        if ( uvalue < 1000 )
+                uvalue = 1000;
+        //NonceCheck::maxblocksize = uvalue;
+
+        value = "";
+        m_systemcontractapi->getValue("maxBlockLimit", value);
+        uvalue = u256(fromBigEndian<u256>(fromHex(value)));
+        if ( uvalue < 100 )
+                uvalue = 100;
+        BlockChain::maxBlockLimit = uvalue;
+
+        LOG(TRACE) << "Client::Client m_maxBlockTranscations：" << m_maxBlockTranscations;
+        LOG(TRACE) << "Client::Client BlockHeader::maxBlockHeadGas：" << BlockHeader::maxBlockHeadGas;
+        LOG(TRACE) << "Client::Client TransactionBase::maxTranscationGas:" << TransactionBase::maxGas;
+        LOG(TRACE) << "Client::Client BlockChain::maxBlockLimit:" << BlockChain::maxBlockLimit;
 }

@@ -41,6 +41,7 @@
 #include "ClientBase.h"
 #include "StateImporter.h"
 #include "BlockChainImporter.h"
+#include "SystemContractApi.h"
 
 #include <boost/filesystem/path.hpp>
 
@@ -51,6 +52,7 @@ namespace eth
 
 class Client;
 class DownloadMan;
+class SystemContractApi;
 
 enum ClientWorkState
 {
@@ -197,7 +199,9 @@ public:
 
 	virtual Block block(h256 const& _block) const override;
 	using ClientBase::block;
-
+    u256 filterCheck(const Transaction & _t, FilterCheckScene _checkscene = FilterCheckScene::None) const override;
+    void    updateSystemContract(std::shared_ptr<Block> block) override;
+    void updateCache(Address address) override;
 protected:
 	/// Perform critical setup functions.
 	/// Must be called in the constructor of the finally derived class.
@@ -286,6 +290,7 @@ protected:
 
 	/// Executes the pending functions in m_functionQueue
 	void callQueuedFunctions();
+    void updateConfig();
 
 	BlockChain m_bc;						///< Maintains block database and owns the seal engine.
 	BlockQueue m_bq;						///< Maintains a list of incoming blocks not yet on the blockchain (to be imported).
@@ -331,6 +336,9 @@ protected:
 	std::atomic<bool> m_syncBlockQueue = {false};
 
 	bytes m_extraData;
+
+    u256 m_maxBlockTranscations = 100;
+    std::shared_ptr<SystemContractApi> m_systemcontractapi;
 };
 
 }

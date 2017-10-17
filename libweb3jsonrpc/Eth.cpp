@@ -276,7 +276,7 @@ string Eth::eth_sendTransaction(Json::Value const& _json)
 	}
 	catch (JsonRpcException&)
 	{
-		throw;
+			BOOST_THROW_EXCEPTION(JsonRpcException("something error."));
 	}
 	catch (...)
 	{
@@ -324,13 +324,60 @@ Json::Value Eth::eth_inspectTransaction(std::string const& _rlp)
 
 string Eth::eth_sendRawTransaction(std::string const& _rlp)
 {
-	try
-	{
-		if (client()->injectTransaction(jsToBytes(_rlp, OnFailed::Throw)) == ImportResult::Success)
-		{
-			Transaction tx(jsToBytes(_rlp, OnFailed::Throw), CheckTransaction::None);
-			return toJS(tx.sha3());
-		}
+    try
+    {
+        ImportResult ir = client()->injectTransaction(jsToBytes(_rlp, OnFailed::Throw));
+
+        if ( ImportResult::Success == ir)
+        {
+                Transaction tx(jsToBytes(_rlp, OnFailed::Throw), CheckTransaction::None);
+
+                return toJS(tx.sha3());
+        }
+        else if ( ImportResult::NonceCheckFail == ir )
+        {
+                BOOST_THROW_EXCEPTION(JsonRpcException("Nonce Check Fail."));
+        }
+        else if ( ImportResult::BlockLimitCheckFail == ir )
+        {
+                BOOST_THROW_EXCEPTION(JsonRpcException("BlockLimit Check Fail."));
+        }
+        else if ( ImportResult::NoTxPermission == ir )
+        {
+                BOOST_THROW_EXCEPTION(JsonRpcException("NoTxPermission ."));
+        }
+        else if ( ImportResult::NoDeployPermission == ir )
+        {
+                BOOST_THROW_EXCEPTION(JsonRpcException("NoDeployPermission ."));
+        }
+        else if ( ImportResult::Malformed == ir )
+        {
+                BOOST_THROW_EXCEPTION(JsonRpcException("Malformed!!"));
+        }
+        else
+        {
+                BOOST_THROW_EXCEPTION(JsonRpcException(" Something Fail!"));
+        }
+
+    }
+    catch (JsonRpcException const& _e)
+    {
+            //return _e.GetMessage();
+            throw;
+    }
+    catch (...)
+    {
+
+            BOOST_THROW_EXCEPTION(JsonRpcException(Errors::ERROR_RPC_INVALID_PARAMS));
+    }
+    /*
+       try
+       {
+       if (client()->injectTransaction(jsToBytes(_rlp, OnFailed::Throw)) == ImportResult::Success)
+       {
+       Transaction tx(jsToBytes(_rlp, OnFailed::Throw), CheckTransaction::None);
+       return toJS(tx.sha3());
+       }
 		else
 			return toJS(h256());
 	}
@@ -338,6 +385,7 @@ string Eth::eth_sendRawTransaction(std::string const& _rlp)
 	{
 		BOOST_THROW_EXCEPTION(JsonRpcException(Errors::ERROR_RPC_INVALID_PARAMS));
 	}
+    */
 }
 
 string Eth::eth_call(Json::Value const& _json, string const& _blockNumber)

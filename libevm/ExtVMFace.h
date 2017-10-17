@@ -110,6 +110,8 @@ class ExtVMFace;
 class LastBlockHashesFace;
 class VM;
 
+using LastHashes = std::vector<h256>;
+
 using OnOpFunc = std::function<void(uint64_t /*steps*/, uint64_t /* PC */, Instruction /*instr*/, bigint /*newMemSize*/, bigint /*gasCost*/, bigint /*gas*/, VM*, ExtVMFace const*)>;
 
 struct CallParameters
