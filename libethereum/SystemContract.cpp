@@ -15,14 +15,14 @@ void SystemContract::updateSystemContract(std::shared_ptr<Block> block)
 
     Timer t;
 
-    LOG(TRACE)<<"SystemContract::updateSystemContract m_systemproxyaddress="<<toString(m_systemproxyaddress)<<",number="<<m_client->blockChain().number()<<","<<m_client->blockChain().info();
+    clog(SystemContractTrace)<<"SystemContract::updateSystemContract m_systemproxyaddress="<<m_systemproxyaddress<<",number="<<m_client->blockChain().number()<<","<<m_client->blockChain().info();
     
     DEV_WRITE_GUARDED(m_blocklock)
     {        
         m_tempblock = block;
         m_tempblock->clearCurrentBytes();
         //m_tempblock->setEvmEventLog(true);//方便看log
-        LOG(TRACE)<<"SystemContract::updateSystemContract blocknumber="<<m_tempblock->info().number();
+        clog(SystemContractTrace)<<"SystemContract::updateSystemContract blocknumber="<<m_tempblock->info().number();
     }
 
     
@@ -66,17 +66,17 @@ void SystemContract::updateSystemContract(std::shared_ptr<Block> block)
         if( (it->to() == m_systemproxyaddress )&&(dev::ZeroAddress != m_systemproxyaddress) )//命中
         {
             routeChange=true;
-            LOG(TRACE)<<"SystemContract::updateSystemContract SystemProxy setRoute! to="<<it->to()<<",sha3="<<toString(it->sha3()) ;
+            clog(SystemContractTrace)<<"SystemContract::updateSystemContract SystemProxy setRoute! to="<<it->to()<<",sha3="<<toString(it->sha3()) ;
         }
         else if( (it->to() == configaction   ) &&(dev::ZeroAddress != configaction) )//命中
         {
             configChange=true;
-            LOG(TRACE)<<"SystemContract::updateSystemContract ConfigAction set! to="<<it->to()<<",sha3="<<toString(it->sha3()) ;
+            clog(SystemContractTrace)<<"SystemContract::updateSystemContract ConfigAction set! to="<<it->to()<<",sha3="<<toString(it->sha3()) ;
         }
         else if( (it->to() == nodeAction )&&(dev::ZeroAddress != nodeAction)&& ((funhash == nodehash1) || (funhash== nodehash2) ) )//命中
         {
             nodeChange=true;
-            LOG(TRACE)<<"SystemContract::updateSystemContract NodeAction cancelNode|registerNode ! to="<<it->to()<<",sha3="<<toString(it->sha3()) ;
+            clog(SystemContractTrace)<<"SystemContract::updateSystemContract NodeAction cancelNode|registerNode ! to="<<it->to()<<",sha3="<<toString(it->sha3()) ;
         }
         else if( (it->to() == caAction )&&(dev::ZeroAddress != caAction)&& ( (funhash == cahash1) || (funhash== cahash2) ) )//命中
         {
@@ -105,7 +105,7 @@ void SystemContract::updateSystemContract(std::shared_ptr<Block> block)
             
             caChangeArg.push_back(hashkey);
             caChange=true;
-            LOG(TRACE)<<"SystemContract::updateSystemContract CAAction updateStatus|update ! hash="<<hashkey<<", to="<<it->to()<<",sha3="<<toString(it->sha3()) ;
+            clog(SystemContractTrace)<<"SystemContract::updateSystemContract CAAction updateStatus|update ! hash="<<hashkey<<", to="<<it->to()<<",sha3="<<toString(it->sha3()) ;
         }
 
     }//for
@@ -179,12 +179,12 @@ void SystemContract::updateSystemContract(std::shared_ptr<Block> block)
         
             if( ok && (it->second.size() ) )
             {
-                LOG(TRACE) << "SystemContract::updateSystemContract Change:" << it->first;
+                clog(SystemContractTrace) << "SystemContract::updateSystemContract Change:" << it->first;
                 for (std::vector< std::function<void(string)> >::iterator cbit = it->second.begin(); cbit != it->second.end(); ++cbit)
                 {
                     for( std::vector<string>::iterator argit=changeArg.begin();argit !=changeArg.end();argit++)
                     {
-                        LOG(TRACE) << "SystemContract::updateSystemContract cb=" << &(*cbit)<<",arg="<<*argit;
+                        clog(SystemContractTrace) << "SystemContract::updateSystemContract cb=" << &(*cbit)<<",arg="<<*argit;
                         (*cbit)(*argit);
                     }                
                 }
@@ -192,7 +192,7 @@ void SystemContract::updateSystemContract(std::shared_ptr<Block> block)
         }//
     }
 
-    LOG(TRACE)<<"SystemContract::updateSystemContract took:"<<(t.elapsed()*1000000);
+    clog(SystemContractTrace)<<"SystemContract::updateSystemContract took:"<<(t.elapsed()*1000000);
     
 }
 
@@ -205,7 +205,7 @@ void SystemContract::updateRoute()
         bytes inputdata5 = abiIn("getRouteSize()");
         ExecutionResult ret5 = call(m_systemproxyaddress, inputdata5);
         u256 routesize = abiOut<u256>(ret5.output);
-        LOG(TRACE) << "SystemContract::updateRoute RouteSize" << routesize;
+        clog(SystemContractTrace) << "SystemContract::updateRoute RouteSize" << routesize;
 
         m_routes.clear();
         for ( size_t i = 0; i < (size_t)routesize; i++)
@@ -220,7 +220,7 @@ void SystemContract::updateRoute()
             Address route = abiOut<Address>(ret7.output);
 
             m_routes.push_back({route, routename});
-            LOG(TRACE) << "SystemContract::updateRoute [" << i << "]=0x" << toString(route) << "," << routename;
+            clog(SystemContractTrace) << "SystemContract::updateRoute [" << i << "]=0x" << toString(route) << "," << routename;
         }//for
     }
     DEV_WRITE_GUARDED(m_lockfilter)
@@ -240,7 +240,7 @@ void SystemContract::updateNode( )
     {
         this->getNodeFromContract(std::bind(&SystemContract::call,this,std::placeholders::_1,std::placeholders::_2,std::placeholders::_3),m_nodelist);
 
-        LOG(TRACE) << "SystemContract::updateNode  m_nodelist.size=" << m_nodelist.size();
+        clog(SystemContractTrace) << "SystemContract::updateNode  m_nodelist.size=" << m_nodelist.size();
     }
 
  
@@ -263,7 +263,7 @@ void SystemContract::getNodeFromContract(std::function<ExecutionResult(Address c
 
         ExecutionResult ret1 = _call(nodeAction, inputdata1,false);
         u256 nodeidslen = abiOut<u256>(ret1.output);
-        LOG(TRACE) << "SystemContract::getNodeFromContract "<<toString(nodeAction)<<" NodeIdsLength" << nodeidslen;
+        clog(SystemContractTrace) << "SystemContract::getNodeFromContract "<<toString(nodeAction)<<" NodeIdsLength" << nodeidslen;
 
         
         _nodelist.clear();
@@ -309,7 +309,7 @@ void SystemContract::getNodeFromContract(std::function<ExecutionResult(Address c
             nodeconnparam._iIdx=idx;
 
             _nodelist.push_back(nodeconnparam);
-            LOG(TRACE) << "SystemContract::updateNode Node[" << i << "]=" << nodeconnparam.toString();
+            clog(SystemContractTrace) << "SystemContract::updateNode Node[" << i << "]=" << nodeconnparam.toString();
 
         }//for
 
@@ -321,7 +321,7 @@ void SystemContract::getNodeFromContract(std::function<ExecutionResult(Address c
     }
     else
     {
-        LOG(INFO)<<"SystemContract::getNodeFromContract No NodeAction!!!!!!!!!!!!";
+        clog(SystemContractWarn)<<"SystemContract::getNodeFromContract No NodeAction!!!!!!!!!!!!";
     }
 
 }
@@ -331,7 +331,7 @@ void SystemContract::tempGetAllNode(int _blocknumber,std::vector< NodeConnParams
     
     if( _blocknumber<0 )
         _blocknumber=m_client->blockChain().number();
-    LOG(TRACE)<<"SystemContract::tempGetAllNode blocknumber="<<_blocknumber;
+    clog(SystemContractTrace)<<"SystemContract::tempGetAllNode blocknumber="<<_blocknumber;
 
            
     Block tempblock = m_client->block(_blocknumber ); 
@@ -357,14 +357,14 @@ void SystemContract::tempGetAllNode(int _blocknumber,std::vector< NodeConnParams
         catch (...)
         {
             // TODO: Some sort of notification of failure.
-            LOG(ERROR) << boost::current_exception_diagnostic_information() << endl;
-            LOG(INFO) << "SystemContract::tempCall call Fail!" << toString(_inputdata);
+            clog(SystemContractError) << boost::current_exception_diagnostic_information();
+            clog(SystemContractWarn) << "SystemContract::tempCall call Fail!" << toString(_inputdata);
         }
         return ret;
 	};
 
     getNodeFromContract(tempCall,_nodelist);
-    LOG(TRACE) << "SystemContract::tempGetAllNode  _nodelist.size=" << _nodelist.size();
+    clog(SystemContractTrace) << "SystemContract::tempGetAllNode  _nodelist.size=" << _nodelist.size();
 
 }
 void SystemContract::getAllNode(int _blocknumber/*-1 代表最新块*/ ,std::vector< NodeConnParams> & _nodevector )
@@ -374,7 +374,7 @@ void SystemContract::getAllNode(int _blocknumber/*-1 代表最新块*/ ,std::vec
         
         DEV_READ_GUARDED(m_blocklock)
         {
-         LOG(TRACE)<< "SystemContract::getAllNode _blocknumber="  <<_blocknumber
+         clog(SystemContractTrace)<< "SystemContract::getAllNode _blocknumber="  <<_blocknumber
          <<",m_tempblock.info().number()="<<m_tempblock->info().number()<<",m_nodelist.size()="<<m_nodelist.size();
 
             if( (_blocknumber == m_tempblock->info().number()) || ( _blocknumber < 0 )  )
@@ -425,7 +425,7 @@ h256 SystemContract::filterCheckTransCacheKey(const Transaction & _t) const
 
 u256 SystemContract::transactionFilterCheck(const Transaction & transaction) {
 
-    LOG(TRACE)<<"SystemContract::transactionFilterCheck";
+    clog(SystemContractTrace)<<"SystemContract::transactionFilterCheck";
     
     if( isGod(transaction.safeSender()))
     {
@@ -468,10 +468,10 @@ u256 SystemContract::transactionFilterCheck(const Transaction & transaction) {
     
     if ( (u256)SystemContractCode::Ok != checkresult )
     {        
-        LOG(INFO) << "SystemContract::transactionFilterCheck Fail!"  << toJS(transaction.sha3()) << ",from=" << toJS(transaction.from());        
+        clog(SystemContractWarn) << "SystemContract::transactionFilterCheck Fail!"  << toJS(transaction.sha3()) << ",from=" << toJS(transaction.from());        
     }
     else{
-        LOG(TRACE) << "SystemContract::transactionFilterCheck Suc!"  << toJS(transaction.sha3()) << ",from=" << toJS(transaction.from());
+        clog(SystemContractTrace) << "SystemContract::transactionFilterCheck Suc!"  << toJS(transaction.sha3()) << ",from=" << toJS(transaction.from());
     }
     
     
@@ -508,7 +508,7 @@ bool SystemContract::getValue(const string _key, string & _value)
         }
         else
         {
-            LOG(TRACE) << "SystemContract::getValue NO ConfigAction!" ;
+            clog(SystemContractWarn) << "SystemContract::getValue NO ConfigAction!" ;
         }
     }
     return true;
@@ -543,8 +543,8 @@ ExecutionResult SystemContract::call(Address const& _to, bytes const& _inputdata
     catch (...)
     {
         // TODO: Some sort of notification of failure.
-        LOG(ERROR) << boost::current_exception_diagnostic_information() << endl;
-        LOG(INFO) << "SystemContract::call Fail!" << toString(_inputdata);
+        clog(SystemContractError) << boost::current_exception_diagnostic_information();
+        clog(SystemContractWarn) << "SystemContract::call Fail!" << toString(_inputdata);
     }
     return ret;
 }

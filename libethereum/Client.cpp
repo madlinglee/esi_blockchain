@@ -875,8 +875,8 @@ void Client::updateConfig()
                 uvalue = 100;
         BlockChain::maxBlockLimit = uvalue;
 
-        LOG(TRACE) << "Client::Client m_maxBlockTranscations：" << m_maxBlockTranscations;
-        LOG(TRACE) << "Client::Client BlockHeader::maxBlockHeadGas：" << BlockHeader::maxBlockHeadGas;
-        LOG(TRACE) << "Client::Client TransactionBase::maxTranscationGas:" << TransactionBase::maxGas;
-        LOG(TRACE) << "Client::Client BlockChain::maxBlockLimit:" << BlockChain::maxBlockLimit;
+        clog(SystemContractTrace) << "Client::Client m_maxBlockTranscations:" << m_maxBlockTranscations
+            << "Client::Client BlockHeader::maxBlockHeadGas:" << BlockHeader::maxBlockHeadGas
+            << "Client::Client TransactionBase::maxTranscationGas:" << TransactionBase::maxGas
+            << "Client::Client BlockChain::maxBlockLimit:" << BlockChain::maxBlockLimit;
 }

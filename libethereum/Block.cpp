@@ -339,7 +339,7 @@ pair<TransactionReceipts, bool> Block::sync(BlockChain const& _bc, TransactionQu
                     u256 check = _bc.filterCheck(t, FilterCheckScene::PackTranscation);
                     if ( (u256)SystemContractCode::Ok != check  )
                     {
-                            LOG(WARNING) << "Block::sync " << t.sha3() << " transition filterCheck PackTranscation Fail" << check;
+                            clog(SystemContractTrace) << "Block::sync " << t.sha3() << " transition filterCheck PackTranscation Fail" << check;
                             BOOST_THROW_EXCEPTION(FilterCheckFail());
                     }
                     execute(_bc.lastBlockHashes(), t);
@@ -362,7 +362,7 @@ pair<TransactionReceipts, bool> Block::sync(BlockChain const& _bc, TransactionQu
 				}
                 catch ( FilterCheckFail const& in)
                 {
-                        LOG(WARNING) << t.sha3() << "Block::sync Dropping  transaction (filter check fail!)";
+                        clog(SystemContractWarn) << t.sha3() << "Block::sync Dropping  transaction (filter check fail!)";
                         _tq.drop(t.sha3());
                 }
 				catch (InvalidNonce const& in)

@@ -28,7 +28,6 @@
 #include <libdevcore/Common.h>
 #include <libdevcore/FixedHash.h>
 #include <libdevcrypto/Common.h>
-#include <libdevcore/easylog.h>
 namespace dev
 {
 namespace eth

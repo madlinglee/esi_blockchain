@@ -9,7 +9,6 @@
 #include "Client.h"
 #include "Transaction.h"
 //#include "NodeConnParamsManager.h"
-#include <libdevcore/easylog.h>
 
 using namespace std;
 using namespace dev::eth;
@@ -22,6 +21,54 @@ namespace eth
 class Client;
 
 
+struct SystemContractNote: public LogChannel 
+{ 
+    static const char* name()
+    {
+        return EthWhite "☯" EthBlue " ℹ";
+    } 
+    static const int verbosity = 2; 
+};
+struct SystemContractChat: public LogChannel 
+{ 
+    static const char* name()
+    {
+        return EthWhite "☯" EthWhite " ◌";
+    } 
+    static const int verbosity = 4;
+};
+struct SystemContractTrace: public LogChannel
+{ 
+    static const char* name()
+    {
+        return EthWhite "☯" EthGray " ◎";
+    } 
+    static const int verbosity = 7; 
+};
+struct SystemContractDetail: public LogChannel 
+{
+    static const char* name()
+    {
+        return EthWhite "☯" EthNavy " ●";
+    } 
+    static const int verbosity = 8; 
+};
+struct SystemContractWarn: public LogChannel 
+{ 
+    static const char* name()
+    {
+        return EthWhite "☯" EthOrange " ◇";
+    }
+    static const int verbosity = 8;
+};
+struct SystemContractError: public LogChannel 
+{
+    static const char* name()
+    {
+        return EthWhite "☯" EthRed " ✘";
+    }
+    static const int verbosity = 8;
+};
 
 enum class SystemContractCode
 {
