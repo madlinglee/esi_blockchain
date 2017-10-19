@@ -19,7 +19,7 @@
  *
  * @return
  */
-static Validator getValidator(const std::string &seed)
+/*static Validator getValidator(const std::string &seed)
 {
     //1, 生成私钥
     //2, 生成公私钥对
@@ -31,4 +31,4 @@ static Validator getValidator(const std::string &seed)
 
     validator.name = seed;
     return validator;
-}
+}*/

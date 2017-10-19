@@ -102,9 +102,8 @@ int help()
         << "--verbosity <0-21>          设置日志等级，默认：8" << endl
         << "--test                      开启本地测试模式" << endl
         << "--n <整数>                  设置共识节点数量，默认：4" << endl
-        << "--c <字符串>                指定本共识节点ID" << endl
         << "-p/--peerset <公钥@IP地址:端口号>" << endl
-        << "                            连接共识节点" << endl
+        << "                            添加共识节点，需要多次按序输入" << endl
         << "--public-ip <IP地址>        设置公共网络地址，默认：自动获取" << endl
         << "--listen-ip <IP地址>        监听网络连接地址，默认：0.0.0.0" << endl
         << "--listen-port <端口号>      监听网络连接端口，默认：30303" << endl
@@ -150,7 +149,6 @@ int main(int argc, char** argv)
 
     /*PBFT*/
     unsigned int node_quantity = 4;//TODO 
-    string consensus_id = "";
     
     /*P2P*/
     string public_ip;
@@ -200,10 +198,6 @@ int main(int argc, char** argv)
         else if (arg == "--n" && i + 1 < argc)
         {
             node_quantity = atoi(argv[++i]);
-        }
-        else if (arg == "--c" && i + 1 < argc)
-        {
-            consensus_id = argv[++i];
         }
         else if((arg == "-p" || arg == "--peerset") && i + 1 < argc)
         {
@@ -400,14 +394,6 @@ int main(int argc, char** argv)
             return -1;
         }
     }
-    if(!test_mode)
-    {
-        if(consensus_id.empty())
-        {
-            cout<<"请输入本节点标识(e.g.--c 71)"<<endl;
-            return -1;
-        }
-    }
 
     /*注册密封引擎*/
     NoProof::init();
@@ -472,7 +458,7 @@ int main(int argc, char** argv)
     net_prefs.pin = true;
     auto hosts_state = contents(getDataDir()/fs::path( "network.rlp"));
 
-    WebThreeConsensus wt(consensus_id, ver, cp, net_prefs, &hosts_state, getDataDir(), we);
+    WebThreeConsensus wt(ver, cp, net_prefs, &hosts_state, getDataDir(), we);
 
     /*区块导入与导出*/
     auto to_number = [&](string const& s) -> unsigned {
@@ -714,10 +700,12 @@ int main(int argc, char** argv)
         cout << wt.enode() << endl;
  
         for (auto const& p: nodes)
+        {
+            wt.insertValidator(p.first.abridged(), (Public)p.first);
+            if(p.first == wt.id())
+                continue;
             wt.requirePeer(p.first, p.second);
-        
-        wt.insertValidator("72");
-        wt.insertValidator("71");
+        }
  
         //开启共识
         while((wt.peerCount() < node_quantity-1) && !eh->shouldExit())//四个节点启动再开启

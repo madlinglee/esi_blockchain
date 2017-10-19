@@ -35,7 +35,6 @@ class WebThreeConsensus: public NetworkFace
 {
 public:
 	WebThreeConsensus(
-    const std::string& consensus_id,
     const std::string& client_version,
     const eth::ChainParams& params,
     const p2p::NetworkPreferences& n,
@@ -95,7 +94,11 @@ public:
 
 	bool isNetworkStarted() const override { return net_.isStarted(); }
 
-    void insertValidator(const std::string& name){consenter_.insertValidator(name);}
+    //void insertValidator(const std::string& name){consenter_.insertValidator(name);}
+    void insertValidator(const std::string& name, const Public& pub)
+    {
+        consenter_.insertValidator(name, pub);
+    }
 
     void startPBFT(){consenter_.startPBFT();}
 

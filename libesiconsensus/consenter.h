@@ -27,12 +27,10 @@ using namespace pbft;
 class Consenter: public MsgCollectorI, public Worker
 {
 public:
-    Consenter(const std::string& consenter_name, const eth::ChainParams& params, p2p::Host* host, const boost::filesystem::path& db_path, WithExisting we = WithExisting::Trust) : Worker("con"),
-    client_name_(consenter_name)
+    Consenter(const eth::ChainParams& params, p2p::Host* host, const boost::filesystem::path& db_path, WithExisting we = WithExisting::Trust) : Worker("con")
     {
         client_ptr_.reset(new PBFTClient(params, (int)params.networkID, host, std::shared_ptr<GasPricer>(), db_path, we));
-        //产生自身的公钥
-        pbft_instance_.resetKeyPairFromSeed(client_name_);
+        pbft_instance_.setKeyPair(host->keyPair());
     }
     ~Consenter()
     {
@@ -44,12 +42,20 @@ public:
      *
      * @param client_name_ 节点名称
      */
-    void insertValidator(const std::string& name)
+    /*void insertValidator(const std::string& name)
     {
         Validator validator = getValidator(name);
         pbft_instance_.insertValidator(validator);
     }
+    */
 
+    void insertValidator(const std::string& name, const Public& pub)
+    {
+        Validator validator;
+        validator.pub_key = pub;
+        validator.name = name;
+        pbft_instance_.insertValidator(validator);
+    }
     /**
      * @brief 开启pbft线程
      */
@@ -132,7 +138,6 @@ private:
     }
     //P2P网络
     std::unique_ptr<PBFTClient> client_ptr_;
-    std::string client_name_;
     //pbft
     PBFTStateMachine pbft_instance_;
 };

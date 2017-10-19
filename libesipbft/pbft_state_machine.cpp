@@ -30,14 +30,14 @@ void PBFTStateMachine::insertValidator(const Validator& validator)
 {
     validator_set_.insertValidator(validator);
 }
-void PBFTStateMachine::resetKeyPairFromSeed(const std::string& seed)
+/*void PBFTStateMachine::resetKeyPairFromSeed(const std::string& seed)
 {
     key_pair_.createKeyFromSeed(seed);
 }
 void PBFTStateMachine::resetKeyPairFromSec(const SecKey& sec)
 {
     key_pair_.createKeyFromSec(sec);
-}
+}*/
 void PBFTStateMachine::doWork() //重写
 {
     if(MsgCollectorI::queueSize() > 0)
@@ -537,7 +537,7 @@ bytes PBFTStateMachine::createVoteMsg(const bytes& msg, PBFT_STATE type)
     try
     {
         h256 hash = createVoteMsgHash(round_state_.height, round_state_.round, type, msg);//哈希
-        h520 signature = sign(key_pair_.sec(), hash); //签名
+        h520 signature = sign(key_pair_.secret(), hash); //签名
 
         rlp.clear();
         rlp.appendList(6);
@@ -595,7 +595,7 @@ void PBFTStateMachine::createProposalInfo()
     h256 hash = sha256(&(proposal_info_.proposal_data));//哈希
     proposal_info_.proposal_hash = hash.asBytes();
 
-    h520 signature = sign(key_pair_.sec(), hash); //签名
+    h520 signature = sign(key_pair_.secret(), hash); //签名
     proposal_info_.sign = signature.asBytes();
 
 }

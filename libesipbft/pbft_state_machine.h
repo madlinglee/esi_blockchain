@@ -16,7 +16,7 @@
 #include "validator_set.h"
 #include "proposal_info.h"
 #include "utils.h"
-#include "key_wrapped.h"
+//#include "key_wrapped.h"
 #include "pbft_interface.h"
 #include "vote_set.h"
 #include "lock_info.h"
@@ -77,13 +77,15 @@ public:
      *
      * @param seed: 种子信息
      */
-    void resetKeyPairFromSeed(const std::string& seed);
+    //void resetKeyPairFromSeed(const std::string& seed);
+
+    void setKeyPair(const KeyPair& kp){key_pair_ = kp;}
     /**
      * @brief 从一个私有初始化当前节点的密钥对
      *
      * @param sec: 私钥信息
      */
-    void resetKeyPairFromSec(const SecKey& sec);
+    //void resetKeyPairFromSec(const SecKey& sec);
     /**
      * @brief 获取当前状态机的状态
      *
@@ -282,7 +284,7 @@ private:
     ValidatorSet    validator_set_;     //验证者集合
     Validator         proposal_validator_;//提案者
     ProposalInfo    proposal_info_;      //提案信息
-    KeyWrapped      key_pair_;             //我的密钥
+    KeyPair      key_pair_;             //我的密钥
     VoteSet         vote_set_;          //收集的投票信息
     LockInfo        lock_info_;         //锁定信息
     std::atomic<bool> no_tx_round_ = {false};

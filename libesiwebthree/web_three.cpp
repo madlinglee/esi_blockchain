@@ -21,7 +21,6 @@ using namespace dev::shh;
 using namespace pbft;
 
 WebThreeConsensus::WebThreeConsensus(
-    const std::string& consensus_id,
     const std::string& client_version,
     const eth::ChainParams& params,
     const NetworkPreferences& n,
@@ -30,7 +29,7 @@ WebThreeConsensus::WebThreeConsensus(
     WithExisting we):
     client_version_(client_version),
     net_(client_version, n, network),
-    consenter_(consensus_id, params, &net_, db_path, we)
+    consenter_(params, &net_, db_path, we)
 {
 	if (db_path.size())
 		Defaults::setDBPath(db_path);

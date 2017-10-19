@@ -138,6 +138,7 @@ bytesSec scrypt(std::string const& _pass, bytes const& _salt, uint64_t _n, uint3
 class KeyPair
 {
 public:
+    KeyPair() = default;
 	/// Normal constructor - populates object from the given secret key.
 	/// If the secret key is invalid the constructor succeeds, but public key
 	/// and address stay "null".

@@ -230,6 +230,8 @@ public:
 
 	/// Get our current node ID.
 	NodeID id() const { return m_alias.pub(); }
+    Secret sec() const { return m_alias.secret(); }
+    KeyPair keyPair() const { return m_alias; }
 
 	/// Get the public TCP endpoint.
 	bi::tcp::endpoint const& tcpPublic() const { return m_tcpPublic; }
