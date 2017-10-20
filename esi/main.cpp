@@ -70,6 +70,15 @@ enum class Format
     Human
 };
 
+struct MainChannel: public LogChannel 
+{ 
+    static const char* name()
+    {
+        return EthGreen "▉" EthGreen " ▉";
+    } 
+    static const int verbosity = 1; 
+};
+
 /*主程序退出管理器*/
 class ExitHandler: public SystemManager
 {
@@ -145,7 +154,7 @@ int generateNetworkRlp()
 
     writeFile(getDataDir()/fs::path("network.rlp"), net_data.out());
     writeFile(getDataDir()/fs::path("network.pub"), kp.pub().hex());
-    cout << "创建新的P2P&&PBFT网络ID/公钥：" << kp.pub().hex() << endl;
+    clog(MainChannel) << "创建新的P2P&&PBFT网络ID/公钥：" << kp.pub().hex();
     return 1;
 }
 
@@ -539,7 +548,7 @@ int main(int argc, char** argv)
             {
                 auto i = imported - last_imported;
                 auto d = e - last;
-                cout << "较上次多导入" << i << "块，速度：" << (round(i * 10 / d) / 10) << " 块/s，本次共" << imported << "块导入，用时：" << e << "s，速度：" << (round(imported * 10 / e) / 10) << "块/s (#" << wt.client()->number() << ")" << "\n";
+                clog(MainChannel) << "较上次多导入" << i << "块，速度：" << (round(i * 10 / d) / 10) << " 块/s，本次共" << imported << "块导入，用时：" << e << "s，速度：" << (round(imported * 10 / e) / 10) << "块/s (#" << wt.client()->number() << ")";
                 last = (unsigned)e;
                 last_imported = imported;
             }
@@ -551,7 +560,7 @@ int main(int argc, char** argv)
             tie(ignore, more_to_import, ignore) = wt.client()->syncQueue(100000);
         }
         double e = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - t).count() / 1000.0;
-        cout << imported << "块导入用时：" << e << "s，速度：" << (round(imported * 10 / e) / 10) << "块/s (#" << wt.client()->number() << ")\n";
+        clog(MainChannel) << imported << "块导入用时：" << e << "s，速度：" << (round(imported * 10 / e) / 10) << "块/s (#" << wt.client()->number() << ")";
         return 0;
     }
     if (mode == OperationMode::ImportSnapshot)
@@ -677,7 +686,7 @@ int main(int argc, char** argv)
             adm_utl = new AdminUtils(*sm.get(), eh.get());
             string session_key;
             session_key = sm->newSession(SessionPermissions{{Privilege::Admin}});
-            cout << "会话密钥：" << session_key << endl;
+            clog(MainChannel) << "会话密钥：" << session_key;
         }
 
         rpc_server.reset(new ModularServer<EthFace, NetFace, DBFace, Web3Face,
@@ -685,13 +694,13 @@ int main(int argc, char** argv)
             (eth, net, db, w3, dbg, per, adm_eth, adm_net, adm_utl));
         rpc_server->addConnector(hs);
         rpc_server->StartListening();
-        cout << "RPC服务器端监听成功" << endl;
+        clog(MainChannel) << "RPC服务器端监听成功";
     }
 
     /*获取PBFT客户端并启动挖矿*/
     PBFTClient* pclient = static_cast<PBFTClient*>(wt.client());
     
-    cout << "区块链高度：#" << pclient->getHeight() << endl;
+    clog(MainChannel) << "区块链高度：" << pclient->getHeight();
     
     if(test_mode)
     {
@@ -703,7 +712,7 @@ int main(int argc, char** argv)
        //开启节点
         wt.startNetwork();
         //本节点的识别地址
-        cout << wt.enode() << endl;
+        clog(MainChannel)<< wt.enode();
  
         for (auto const& p: nodes)
         {
@@ -713,14 +722,14 @@ int main(int argc, char** argv)
             wt.requirePeer(p.first, p.second);
         }
         
-        cout << "PBFT共识节点总数：" << nodes.size() << endl;
-        cout << "等待节点连接" << endl;
+        clog(MainChannel) << "PBFT共识节点总数：" << nodes.size();
+        clog(MainChannel) << "等待节点连接";
         //开启共识
         while((wt.peerCount() < nodes.size()-1) && !eh->shouldExit())//所有共识节点启动再开启
             ;
         if(!eh->shouldExit())
         {
-            cout << "开启PBFT" <<endl;
+            clog(MainChannel) << "开启PBFT";
             wt.startPBFT();
         }
         

@@ -22,7 +22,7 @@ struct PBFTNote: public LogChannel
 { 
     static const char* name()
     {
-        return EthYellow "❇" EthBlue " ℹ";
+        return EthOrange "❇" EthBlue " ℹ";
     } 
     static const int verbosity = 2; 
 };
@@ -30,7 +30,7 @@ struct PBFTChat: public LogChannel
 { 
     static const char* name()
     {
-        return EthYellow "❇" EthWhite " ◌";
+        return EthOrange "❇" EthWhite " ◌";
     } 
     static const int verbosity = 4;
 };
@@ -38,7 +38,7 @@ struct PBFTTrace: public LogChannel
 { 
     static const char* name()
     {
-        return EthYellow "❇" EthGray " ◎";
+        return EthOrange "❇" EthGray " ◎";
     } 
     static const int verbosity = 7; 
 };
@@ -46,7 +46,7 @@ struct PBFTDetail: public LogChannel
 {
     static const char* name()
     {
-        return EthYellow "❇" EthNavy " ●";
+        return EthOrange "❇" EthNavy " ●";
     } 
     static const int verbosity = 8; 
 };
@@ -54,7 +54,7 @@ struct PBFTWarn: public LogChannel
 { 
     static const char* name()
     {
-        return EthYellow "❇" EthOrange " ◇";
+        return EthOrange "❇" EthOrange " !";
     }
     static const int verbosity = 8;
 };
@@ -62,7 +62,7 @@ struct PBFTError: public LogChannel
 {
     static const char* name()
     {
-        return EthYellow "❇" EthRed " ✘";
+        return EthOrange "❇" EthRed " ✘";
     }
     static const int verbosity = 8;
 };

@@ -57,7 +57,7 @@ struct SystemContractWarn: public LogChannel
 { 
     static const char* name()
     {
-        return EthWhite "☯" EthOrange " ◇";
+        return EthWhite "☯" EthOrange " !";
     }
     static const int verbosity = 8;
 };

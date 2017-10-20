@@ -16,7 +16,7 @@ struct ClientWarn: public LogChannel
 { 
     static const char* name()
     {
-        return EthYellow "⧫" EthBlue " ◇";
+        return EthYellow "⧫" EthBlue " !";
     }
     static const int verbosity = 8; 
 };
