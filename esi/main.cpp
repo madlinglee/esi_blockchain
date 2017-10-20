@@ -101,7 +101,6 @@ int help()
     cout << EthMaroon
         << "--verbosity <0-21>          设置日志等级，默认：8" << endl
         << "--test                      开启本地测试模式" << endl
-        << "--n <整数>                  设置共识节点数量，默认：4" << endl
         << "-p/--peerset <公钥@IP地址:端口号>" << endl
         << "                            添加共识节点，需要多次按序输入" << endl
         << "--public-ip <IP地址>        设置公共网络地址，默认：自动获取" << endl
@@ -144,12 +143,9 @@ int main(int argc, char** argv)
     /*本地测试/网络连接*/
     bool test_mode = false;
     
-    /*节点连接列表*/
+    /*PBFT共识节点、连接列表*/
     map<NodeID, NodeIPEndpoint> nodes;
 
-    /*PBFT*/
-    unsigned int node_quantity = 4;//TODO 
-    
     /*P2P*/
     string public_ip;
     string listen_ip;
@@ -194,10 +190,6 @@ int main(int argc, char** argv)
         else if(arg == "--test")
         {
             test_mode = true;
-        }
-        else if (arg == "--n" && i + 1 < argc)
-        {
-            node_quantity = atoi(argv[++i]);
         }
         else if((arg == "-p" || arg == "--peerset") && i + 1 < argc)
         {
@@ -706,9 +698,11 @@ int main(int argc, char** argv)
                 continue;
             wt.requirePeer(p.first, p.second);
         }
- 
+        
+        cout << "PBFT共识节点总数：" << nodes.size() << endl;
+        cout << "等待节点连接" << endl;
         //开启共识
-        while((wt.peerCount() < node_quantity-1) && !eh->shouldExit())//四个节点启动再开启
+        while((wt.peerCount() < nodes.size()-1) && !eh->shouldExit())//四个节点启动再开启
             ;
         if(!eh->shouldExit())
         {
