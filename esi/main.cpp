@@ -145,6 +145,7 @@ int generateNetworkRlp()
 
     writeFile(getDataDir()/fs::path("network.rlp"), net_data.out());
     writeFile(getDataDir()/fs::path("network.pub"), kp.pub().hex());
+    cout << "创建新的P2P&&PBFT网络ID/公钥：" << kp.pub().hex() << endl;
     return 1;
 }
 
