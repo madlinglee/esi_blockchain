@@ -26,6 +26,7 @@
 #include <mutex>
 #include <memory>
 #include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
 #include <libdevcore/Common.h>
 #include <libdevcore/Assertions.h>
 #include <libdevcore/CommonIO.h>
@@ -40,6 +41,7 @@
 using namespace std;
 using namespace dev;
 using namespace dev::p2p;
+namespace fs = boost::filesystem;
 
 /// Interval at which Host::run will call keepAlivePeers to ping peers.
 std::chrono::seconds const c_keepAliveInterval = std::chrono::seconds(30);
@@ -107,7 +109,7 @@ Host::Host(string const& _clientVersion, KeyPair const& _alias, NetworkPreferenc
 	m_alias(_alias),
 	m_lastPing(chrono::steady_clock::time_point::min())
 {
-	clog(NetNote) << "Id:" << id();
+	clog(NetNote) << "P2P && PBFT network ID:" << id();
 }
 
 Host::Host(string const& _clientVersion, NetworkPreferences const& _n, bytesConstRef _restoreNetwork):
@@ -811,7 +813,7 @@ void Host::disconnectLatePeers()
 
 bytes Host::saveNetwork() const
 {
-	std::list<Peer> peers;
+	/*std::list<Peer> peers;
 	{
 		RecursiveGuard l(x_sessions);
 		for (auto p: m_peers)
@@ -819,7 +821,7 @@ bytes Host::saveNetwork() const
 				peers.push_back(*p.second);
 	}
 	peers.sort();
-
+    
 	RLPStream network;
 	int count = 0;
 	for (auto const& p: peers)
@@ -854,12 +856,13 @@ bytes Host::saveNetwork() const
 		}
 	}
 	// else: TODO: use previous configuration if available
-
+    */
 	RLPStream ret(3);
 	ret << dev::p2p::c_protocolVersion << m_alias.secret().ref();
-	ret.appendList(count);
-	if (!!count)
-		ret.appendRaw(network.out(), count);
+	int count = 0;
+    ret.appendList(count);
+	//if (!!count)
+	//	ret.appendRaw(network.out(), count);
 	return ret.out();
 }
 
@@ -948,5 +951,16 @@ KeyPair Host::networkAlias(bytesConstRef _b)
 	if (r.itemCount() == 3 && r[0].isInt() && r[0].toInt<unsigned>() >= 3)
 		return KeyPair(Secret(r[1].toBytes()));
 	else
-		return KeyPair::create();
+    {
+        KeyPair kp = KeyPair::create();
+        RLPStream netData(3);
+        netData << dev::p2p::c_protocolVersion << kp.secret().ref();
+        int count = 0;
+        netData.appendList(count);
+
+        writeFile(getDataDir()/fs::path("network.rlp"), netData.out());
+        writeFile(getDataDir()/fs::path("network.pub"), kp.pub().hex());
+	    clog(NetNote) << "Create new P2P && PBFT network ID/public key:" << kp.pub().hex();
+        return kp;
+    }
 }

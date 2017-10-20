@@ -135,6 +135,19 @@ int help()
     return 1;
 }
 
+int generateNetworkRlp()
+{
+    KeyPair kp = KeyPair::create();
+    RLPStream net_data(3);
+    net_data << dev::p2p::c_protocolVersion << kp.secret().ref();
+    int count = 0;
+    net_data.appendList(count);
+
+    writeFile(getDataDir()/fs::path("network.rlp"), net_data.out());
+    writeFile(getDataDir()/fs::path("network.pub"), kp.pub().hex());
+    return 1;
+}
+
 int main(int argc, char** argv)
 {
     /*日志等级*/
@@ -448,7 +461,7 @@ int main(int argc, char** argv)
         NetworkPreferences(listen_ip, listen_port, upnp);
     net_prefs.discovery = false;
     net_prefs.pin = true;
-    auto hosts_state = contents(getDataDir()/fs::path( "network.rlp"));
+    auto hosts_state = contents(getDataDir()/fs::path("network.rlp"));
 
     WebThreeConsensus wt(ver, cp, net_prefs, &hosts_state, getDataDir(), we);
 
@@ -702,7 +715,7 @@ int main(int argc, char** argv)
         cout << "PBFT共识节点总数：" << nodes.size() << endl;
         cout << "等待节点连接" << endl;
         //开启共识
-        while((wt.peerCount() < nodes.size()-1) && !eh->shouldExit())//四个节点启动再开启
+        while((wt.peerCount() < nodes.size()-1) && !eh->shouldExit())//所有共识节点启动再开启
             ;
         if(!eh->shouldExit())
         {
@@ -718,11 +731,5 @@ int main(int argc, char** argv)
     if(rpc_server.get())
         rpc_server->StopListening();
 
-    /*保存节点、连接配置*/
-    bytes net_data;
-    net_data = wt.saveNetwork();
-    if (!net_data.empty())
-        writeFile(getDataDir()/fs::path("/network.rlp"), net_data);
-    
     return 0;
 }
