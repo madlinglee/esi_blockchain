@@ -114,9 +114,9 @@ int help()
         << "                            添加共识节点，需要多次按序输入" << endl
         << "--public-ip <IP地址>        设置公共网络地址，默认：自动获取" << endl
         << "--listen-ip <IP地址>        监听网络连接地址，默认：0.0.0.0" << endl
-        << "--listen-port <端口号>      监听网络连接端口，默认：30303" << endl
+        << "--listen-port <端口号>      监听网络连接端口，默认：30305" << endl
         << "--no-upnp                   关闭UPNP" << endl
-        << "--rpc-port <端口号>         指定RPC端口，默认：8548" << endl
+        << "--rpc-port <端口号>         指定RPC端口，默认：8555" << endl
         << "--rpccorsdomain <域名>      跨域访问" << endl
         << "-j/--json-rpc               启动RPC服务器，提供基础RPC服务" << endl
         << "--util-rpc                  提供工具类RPC服务" << endl
@@ -172,11 +172,11 @@ int main(int argc, char** argv)
     /*P2P*/
     string public_ip;
     string listen_ip;
-    unsigned short listen_port = 30303;
+    unsigned short listen_port = 30305;
     bool upnp = true;
 
     /*RPC*/
-    int rpc_port = 8548;
+    int rpc_port = 8555;
     string rpc_cors_domain = "";
     bool rpc_curl = false;
     bool rpc_util = false;
@@ -198,7 +198,7 @@ int main(int argc, char** argv)
 
     /*链操作参数*/
     WithExisting we = WithExisting::Trust;
-    ChainParams cp(genesis_info);
+    ChainParams cp;
     string json_config;
     string json_genesis;
     
@@ -414,6 +414,8 @@ int main(int argc, char** argv)
     NoProof::init();
     BasicAuthority::init();
 
+    if(json_config.empty())
+        json_config = contentsString(getDataDir()/fs::path("config.json"));
     /*重置链操作参数*/
     if(!json_config.empty())
     {
@@ -458,6 +460,11 @@ int main(int argc, char** argv)
     /*允许未来区块*/
     cp.allowFutureBlocks = true;
 
+    for(auto const& node: cp.confNodes)
+    {
+        Public pub_key(fromHex(node.first));
+        nodes[pub_key] = NodeIPEndpoint(bi::address::from_string(node.second._sIP), node.second._iPort, node.second._iPort);
+    }
     if(test_mode)
         cp.chainID = -1;
 
@@ -709,11 +716,16 @@ int main(int argc, char** argv)
     }
     else
     {
-       //开启节点
+        //开启节点
         wt.startNetwork();
         //本节点的识别地址
         clog(MainChannel)<< wt.enode();
  
+        if(nodes.size() < 2)
+        {
+            clog(MainChannel) << "PBFT共识节点数量太少";
+            return -1;
+        }
         for (auto const& p: nodes)
         {
             wt.insertValidator(p.first.abridged(), (Public)p.first);

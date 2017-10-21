@@ -58,7 +58,27 @@ ChainParams ChainParams::loadConfig(string const& _json, h256 const& _stateRoot)
 	json_spirit::read_string(_json, val);
 	js::mObject obj = val.get_obj();
 
-	cp.sealEngineName = obj["sealEngine"].get_str();
+	//cp.sealEngineName = obj["sealEngine"].get_str();
+	cp.sealEngineName = "NoProof";
+    
+    cp.god = obj.count("god") ? h160(obj["god"].get_str()) : h160();
+    cp.sysytemProxyAddress = obj.count("systemproxyaddress") ? h160(obj["systemproxyaddress"].get_str()) : h160();
+
+    for (auto node : obj["NodeextraInfo"].get_array())
+    {
+        NodeConnParams nodeConnParam;
+
+        nodeConnParam._sNodeId = node.get_obj()["Nodeid"].get_str();
+        nodeConnParam._sAgencyInfo = node.get_obj()["Agencyinfo"].get_str();
+        nodeConnParam._sIP = node.get_obj()["Peerip"].get_str();
+        nodeConnParam._iPort = node.get_obj()["Port"].get_int();
+        nodeConnParam._iIdentityType = node.get_obj()["Identitytype"].get_int();
+        nodeConnParam._sAgencyDesc = node.get_obj()["Nodedesc"].get_str();
+        nodeConnParam._iIdx = u256(node.get_obj()["Idx"].get_int());
+        
+        cp.confNodes[nodeConnParam._sNodeId] = nodeConnParam;
+    }
+
 	// params
 	js::mObject params = obj["params"].get_obj();
 	cp.accountStartNonce = u256(fromBigEndian<u256>(fromHex(params["accountStartNonce"].get_str())));
@@ -94,8 +114,11 @@ ChainParams ChainParams::loadConfig(string const& _json, h256 const& _stateRoot)
 	string genesisStr = json_spirit::write_string(obj["genesis"], false);
 	cp = cp.loadGenesis(genesisStr, _stateRoot);
 	// genesis state
-	string genesisStateStr = json_spirit::write_string(obj["accounts"], false);
-	cp = cp.loadGenesisState(genesisStateStr, _stateRoot);
+    if(obj.count("accounts"))
+    {
+	    string genesisStateStr = json_spirit::write_string(obj["accounts"], false);
+	    cp = cp.loadGenesisState(genesisStateStr, _stateRoot);
+    }
 	return cp;
 }
 
@@ -116,10 +139,10 @@ ChainParams ChainParams::loadGenesis(string const& _json, h256 const& _stateRoot
 	js::mObject genesis = val.get_obj();
 
 	cp.parentHash = h256(genesis["parentHash"].get_str());
-	cp.author = genesis.count("coinbase") ? h160(genesis["coinbase"].get_str()) : h160(genesis["author"].get_str());
+	cp.author = cp.god;
 	cp.difficulty = genesis.count("difficulty") ? u256(fromBigEndian<u256>(fromHex(genesis["difficulty"].get_str()))) : 0;
 	cp.gasLimit = u256(fromBigEndian<u256>(fromHex(genesis["gasLimit"].get_str())));
-	cp.gasUsed = genesis.count("gasUsed") ? u256(fromBigEndian<u256>(fromHex(genesis["gasUsed"].get_str()))) : 0;
+	cp.gasUsed = 0;
 	cp.timestamp = u256(fromBigEndian<u256>(fromHex(genesis["timestamp"].get_str())));
 	cp.extraData = bytes(fromHex(genesis["extraData"].get_str()));
 

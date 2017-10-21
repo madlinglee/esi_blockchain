@@ -97,6 +97,8 @@ public:
     Address sysytemProxyAddress;//系统代理合约地址
     Address god;//上帝帐号
 
+    std::map<std::string, NodeConnParams> confNodes;
+
 	u256 minimumDifficulty;
 	u256 difficultyBoundDivisor;
 	u256 durationLimit;
