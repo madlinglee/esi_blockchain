@@ -108,15 +108,17 @@ int version()
 int help()
 {
     cout << EthMaroon
-        << "--verbosity <0-21>          设置日志等级，默认：8" << endl
+        << "--config <文件名>           读取JSON格式配置文件，包括创世块配置" << endl
+        //<< "--genesis-config <文件名>   读取JSON格式创世块文件" << endl
+        //<< "--verbosity <0-21>          设置日志等级，默认：8" << endl
         << "--test                      开启本地测试模式" << endl
-        << "-p/--peerset <公钥@IP地址:端口号>" << endl
-        << "                            添加共识节点，需要多次按序输入" << endl
+        //<< "-p/--peerset <公钥@IP地址:端口号>" << endl
+        //<< "                            添加共识节点，需要多次按序输入" << endl
         << "--public-ip <IP地址>        设置公共网络地址，默认：自动获取" << endl
-        << "--listen-ip <IP地址>        监听网络连接地址，默认：0.0.0.0" << endl
-        << "--listen-port <端口号>      监听网络连接端口，默认：30305" << endl
+        //<< "--listen-ip <IP地址>        监听网络连接地址，默认：0.0.0.0" << endl
+        //<< "--listen-port <端口号>      监听网络连接端口，默认：30305" << endl
         << "--no-upnp                   关闭UPNP" << endl
-        << "--rpc-port <端口号>         指定RPC端口，默认：8555" << endl
+        //<< "--rpc-port <端口号>         指定RPC端口，默认：8555" << endl
         << "--rpccorsdomain <域名>      跨域访问" << endl
         << "-j/--json-rpc               启动RPC服务器，提供基础RPC服务" << endl
         << "--util-rpc                  提供工具类RPC服务" << endl
@@ -124,9 +126,7 @@ int help()
         << "--kill-blockchain           删除区块链数据库" << endl
         << "--rebuild-blockchain        重构/恢复区块链数据库" << endl
         << "--rescue-blockchain         修复区块链数据库" << endl
-        << "-d/--db-path <目录名>       指定数据库路径，默认：" << getDataDir() << endl
-        << "--config <文件名>           读取JSON格式配置文件，包括创世块配置" << endl
-        << "--genesis-config <文件名>   读取JSON格式创世块文件" << endl
+        //<< "-d/--db-path <目录名>       指定数据库路径，默认：" << getDataDir() << endl
         << "--master <密码>             指定密钥管理器的主密码，即钱包密码，默认：空" << endl
         << "--password <密码>           缓存密码" << endl
         << "-s/--import-secret <私钥>   导入私钥" << endl
@@ -154,7 +154,7 @@ int generateNetworkRlp()
 
     writeFile(getDataDir()/fs::path("network.rlp"), net_data.out());
     writeFile(getDataDir()/fs::path("network.pub"), kp.pub().hex());
-    clog(MainChannel) << "创建新的P2P&&PBFT网络ID/公钥：" << kp.pub().hex();
+    clog(MainChannel) << "创建新的P2P&&PBFT网络ID/公钥:" << kp.pub().hex();
     return 1;
 }
 
@@ -167,7 +167,7 @@ int main(int argc, char** argv)
     bool test_mode = false;
     
     /*PBFT共识节点、连接列表*/
-    map<NodeID, NodeIPEndpoint> nodes;
+    map<NodeID, pair<NodeIPEndpoint, string>> nodes;
 
     /*P2P*/
     string public_ip;
@@ -202,19 +202,23 @@ int main(int argc, char** argv)
     string json_config;
     string json_genesis;
     
-    /*解析CLI/命令行参数*/
+    u256 ask_price = DefaultGasPrice;
+    u256 bid_price = DefaultGasPrice;
+    shared_ptr<eth::TrivialGasPricer> gp = make_shared<eth::TrivialGasPricer>(ask_price, bid_price);
+
+    /*解析CLI/命令行参数---------------*/
     for(int i = 1; i < argc; ++i)
     {
         string arg = argv[i];
-        if(arg == "--verbosity" && i + 1 < argc)
-        {
-            g_logVerbosity = atoi(argv[++i]);
-        }
-        else if(arg == "--test")
+        if(arg == "--test")
         {
             test_mode = true;
         }
-        else if((arg == "-p" || arg == "--peerset") && i + 1 < argc)
+        /*else if(arg == "--verbosity" && i + 1 < argc)
+        {
+            g_logVerbosity = atoi(argv[++i]);
+        }*/
+        /*else if((arg == "-p" || arg == "--peerset") && i + 1 < argc)
         {
             string pub;
             string host;
@@ -225,7 +229,7 @@ int main(int argc, char** argv)
             if(key_host_port.size()!=2)
             {
                 cerr << "参数[" << arg << ": " << argv[i] << "]错误" << endl;
-                cerr << "正确示例：\n-p 公钥@IP地址:端口号" << endl;
+                cerr << "正确示例: \n-p 公钥@IP地址:端口号" << endl;
                 return -1;
             }
             port = (uint16_t)atoi(key_host_port[1].c_str());
@@ -234,14 +238,14 @@ int main(int argc, char** argv)
             if(key_host.size()!=2)
             {
                 cerr << "参数[" << arg << ": " << argv[i] << "]错误" << endl;
-                cerr << "正确示例：\n-p 公钥@IP地址:端口号" << endl;
+                cerr << "正确示例: \n-p 公钥@IP地址:端口号" << endl;
                 return -1;
             }
             pub = key_host[0];
             if(pub.size() != 128)
             {
                 cerr << "参数[" << arg << ": " << argv[i] << "]错误" << endl;
-                cerr << "正确示例：\n-p 公钥@IP地址:端口号" << endl;
+                cerr << "正确示例: \n-p 公钥@IP地址:端口号" << endl;
                 return -1;
             }
             host = key_host[1];
@@ -253,30 +257,30 @@ int main(int argc, char** argv)
             catch(...)
             {
                 cerr << "参数[" << arg << ": " << argv[i] << "]错误" << endl;
-                cerr << "正确示例：\n-p 公钥@IP地址:端口号" << endl;
+                cerr << "正确示例\n-p 公钥@IP地址:端口号" << endl;
                 return -1; 
             }
-        }
+        }*/
         else if(arg == "--public-ip" && i + 1 < argc)
         {
             public_ip = argv[++i];
         }
-        else if(arg == "--listen-ip" && i + 1 < argc)
+        /*else if(arg == "--listen-ip" && i + 1 < argc)
         {
             listen_ip = argv[++i];
-        }
-        else if(arg == "--listen-port" && i + 1 < argc)
+        }*/
+        /*else if(arg == "--listen-port" && i + 1 < argc)
         {
             listen_port = (short)atoi(argv[++i]);
-        }
+        }*/
         else if(arg == "--no-upnp")
         {
             upnp = false;
         }
-        else if(arg == "--rpc-port" && i + 1 < argc)
+        /*else if(arg == "--rpc-port" && i + 1 < argc)
         {
             rpc_port = atoi(argv[++i]);
-        }
+        }*/
         else if(arg == "--rpccorsdomain" && i + 1 < argc)
         {
             rpc_cors_domain = atoi(argv[++i]);
@@ -305,10 +309,10 @@ int main(int argc, char** argv)
         {
             we = WithExisting::Rescue;
         }
-        else if((arg == "-d" || arg == "--db-path") && i + 1 < argc)
+        /*else if((arg == "-d" || arg == "--db-path") && i + 1 < argc)
         {
             setDataDir(argv[++i]);
-        }
+        }*/
         else if(arg == "--config" && i + 1 < argc)
         {
             try
@@ -321,7 +325,7 @@ int main(int argc, char** argv)
                 return -1;
             }
         }
-        else if(arg == "--genesis-config" && i + 1 < argc)
+        /*else if(arg == "--genesis-config" && i + 1 < argc)
         {
             try
             {
@@ -332,7 +336,7 @@ int main(int argc, char** argv)
                 cerr << "参数[" << arg << ": " << argv[i] << "]错误" << endl;
                 return -1;
             }
-        }
+        }*/
         else if (arg == "--master" && i + 1 < argc)
         {
             master_password = argv[++i];
@@ -409,19 +413,20 @@ int main(int argc, char** argv)
             return -1;
         }
     }
+    /*完成CLI解析----------------------*/
 
     /*注册密封引擎*/
     NoProof::init();
     BasicAuthority::init();
 
-    if(json_config.empty())
-        json_config = contentsString(getDataDir()/fs::path("config.json"));
     /*重置链操作参数*/
-    if(!json_config.empty())
+    if(json_config.empty())
+        cp = ChainParams(genesis_info);//从头文件的字符串中读取
+    else
     {
         try
         {
-            cp = cp.loadConfig(json_config);
+            cp = cp.loadConfig(json_config);//从配置文件中读取
         }
         catch(...)
         {
@@ -430,7 +435,7 @@ int main(int argc, char** argv)
             return -1;
         }
     }
-    if(!json_genesis.empty())
+    /*if(!json_genesis.empty())
     {
         try
         {
@@ -455,22 +460,42 @@ int main(int argc, char** argv)
             cerr << "正确示例: " << endl << sample << endl;
             return -1;
         }
-    }
+    }*/
 
     /*允许未来区块*/
     cp.allowFutureBlocks = true;
 
-    for(auto const& node: cp.confNodes)
-    {
-        Public pub_key(fromHex(node.first));
-        nodes[pub_key] = NodeIPEndpoint(bi::address::from_string(node.second._sIP), node.second._iPort, node.second._iPort);
-    }
     if(test_mode)
         cp.chainID = -1;
 
-    u256 ask_price = DefaultGasPrice;
-    u256 bid_price = DefaultGasPrice;
-    shared_ptr<eth::TrivialGasPricer> gp = make_shared<eth::TrivialGasPricer>(ask_price, bid_price);
+    /*读取链参数*/ 
+    g_logVerbosity = cp.logVerbosity;
+    listen_ip = cp.listenIp;
+    listen_port = cp.listenPort;
+    rpc_port = cp.rpcPort;
+    setDataDir(fs::path(cp.dataPath));
+    for(auto const& node: cp.confNodes)
+    {
+        Public pub_key(fromHex(node.first));
+        nodes[pub_key] = make_pair(NodeIPEndpoint(bi::address::from_string(node.second._sIP), node.second._iPort, node.second._iPort), node.second._sAgencyDesc);
+    }
+
+    clog(MainChannel) << "日志等级:" << g_logVerbosity;
+    clog(MainChannel) << "God账户地址:" << cp.god;
+    clog(MainChannel) << "系统代理合约地址:" << cp.sysytemProxyAddress;
+    if(!test_mode)
+    {
+        clog(MainChannel) << "P2P监听IP地址:" << listen_ip;
+        clog(MainChannel) << "监听端口号:" << listen_port;
+    }
+    clog(MainChannel) << "RPC监听端口号:" << rpc_port;
+    clog(MainChannel) << "数据存放目录:" << getDataDir().string();
+    if(!test_mode)
+        for(auto const& node: cp.confNodes)
+        {
+            clog(MainChannel) << "共识节点:" << node.second._sAgencyDesc << "公钥ID:"
+                << node.first << "IP地址:" << node.second._sIP << "端口号:" << node.second._iPort;
+        }
 
     /*构造Host、Client、Consenter*/
     auto net_prefs = public_ip.empty()? 
@@ -555,7 +580,7 @@ int main(int argc, char** argv)
             {
                 auto i = imported - last_imported;
                 auto d = e - last;
-                clog(MainChannel) << "较上次多导入" << i << "块，速度：" << (round(i * 10 / d) / 10) << " 块/s，本次共" << imported << "块导入，用时：" << e << "s，速度：" << (round(imported * 10 / e) / 10) << "块/s (#" << wt.client()->number() << ")";
+                clog(MainChannel) << "较上次多导入" << i << "块，速度:" << (round(i * 10 / d) / 10) << " 块/s，本次共" << imported << "块导入，用时:" << e << "s，速度:" << (round(imported * 10 / e) / 10) << "块/s (#" << wt.client()->number() << ")";
                 last = (unsigned)e;
                 last_imported = imported;
             }
@@ -567,7 +592,7 @@ int main(int argc, char** argv)
             tie(ignore, more_to_import, ignore) = wt.client()->syncQueue(100000);
         }
         double e = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - t).count() / 1000.0;
-        clog(MainChannel) << imported << "块导入用时：" << e << "s，速度：" << (round(imported * 10 / e) / 10) << "块/s (#" << wt.client()->number() << ")";
+        clog(MainChannel) << imported << "块导入用时:" << e << "s，速度:" << (round(imported * 10 / e) / 10) << "块/s (#" << wt.client()->number() << ")";
         return 0;
     }
     if (mode == OperationMode::ImportSnapshot)
@@ -693,7 +718,7 @@ int main(int argc, char** argv)
             adm_utl = new AdminUtils(*sm.get(), eh.get());
             string session_key;
             session_key = sm->newSession(SessionPermissions{{Privilege::Admin}});
-            clog(MainChannel) << "会话密钥：" << session_key;
+            clog(MainChannel) << "会话密钥:" << session_key;
         }
 
         rpc_server.reset(new ModularServer<EthFace, NetFace, DBFace, Web3Face,
@@ -707,7 +732,7 @@ int main(int argc, char** argv)
     /*获取PBFT客户端并启动挖矿*/
     PBFTClient* pclient = static_cast<PBFTClient*>(wt.client());
     
-    clog(MainChannel) << "区块链高度：" << pclient->getHeight();
+    clog(MainChannel) << "区块链高度:" << pclient->getHeight();
     
     if(test_mode)
     {
@@ -728,13 +753,13 @@ int main(int argc, char** argv)
         }
         for (auto const& p: nodes)
         {
-            wt.insertValidator(p.first.abridged(), (Public)p.first);
+            wt.insertValidator(p.second.second, (Public)p.first);
             if(p.first == wt.id())
                 continue;
-            wt.requirePeer(p.first, p.second);
+            wt.requirePeer(p.first, p.second.first);
         }
         
-        clog(MainChannel) << "PBFT共识节点总数：" << nodes.size();
+        clog(MainChannel) << "PBFT共识节点总数:" << nodes.size();
         clog(MainChannel) << "等待节点连接";
         //开启共识
         while((wt.peerCount() < nodes.size()-1) && !eh->shouldExit())//所有共识节点启动再开启

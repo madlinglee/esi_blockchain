@@ -64,6 +64,12 @@ ChainParams ChainParams::loadConfig(string const& _json, h256 const& _stateRoot)
     cp.god = obj.count("god") ? h160(obj["god"].get_str()) : h160();
     cp.sysytemProxyAddress = obj.count("systemproxyaddress") ? h160(obj["systemproxyaddress"].get_str()) : h160();
 
+    cp.logVerbosity = obj.count("logverbosity") ? std::stoi(obj["logverbosity"].get_str()) : 8;
+    cp.listenIp = obj.count("listenip") ? obj["listenip"].get_str() : "0.0.0.0";
+    cp.listenPort = obj.count("listenport") ? std::stoi(obj["listenport"].get_str()) : 30305;
+    cp.rpcPort = obj.count("rpcport") ? std::stoi(obj["rpcport"].get_str()) : 8555;
+    cp.dataPath = obj.count("datapath") ? obj["datapath"].get_str() : "";
+
     for (auto node : obj["NodeextraInfo"].get_array())
     {
         NodeConnParams nodeConnParam;

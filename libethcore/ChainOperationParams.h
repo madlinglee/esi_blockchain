@@ -99,6 +99,12 @@ public:
 
     std::map<std::string, NodeConnParams> confNodes;
 
+    int logVerbosity = 0;
+    std::string listenIp = "";
+    int listenPort = 0;
+    int rpcPort = 0;
+    std::string dataPath = "";
+
 	u256 minimumDifficulty;
 	u256 difficultyBoundDivisor;
 	u256 durationLimit;
