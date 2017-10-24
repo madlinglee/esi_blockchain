@@ -345,8 +345,8 @@ void SystemContract::tempGetAllNode(int _blocknumber,std::vector< NodeConnParams
             srand((unsigned)utcTime());
             struct timeval tv;
             gettimeofday(&tv, NULL);
-            u256 nonce = (u256)(rand() + rand() + tv.tv_usec);
-
+            //u256 nonce = (u256)(rand() + rand() + tv.tv_usec);
+            u256 nonce = m_client->getNonce(m_god);
             u256 gas = tempblock.gasLimitRemaining() ;
             u256 gasPrice = 100000000;
             Transaction t(0, gasPrice, gas, _to, _inputdata, nonce);
@@ -526,8 +526,8 @@ ExecutionResult SystemContract::call(Address const& _to, bytes const& _inputdata
         srand((unsigned)utcTime());
         struct timeval tv;
         gettimeofday(&tv, NULL);
-        u256 nonce = (u256)(rand() + rand() + tv.tv_usec);
-
+        //u256 nonce = (u256)(rand() + rand() + tv.tv_usec);
+        u256 nonce = m_client->getNonce(m_god);
         DEV_WRITE_GUARDED(m_blocklock)
         {
             u256 gas = m_tempblock->gasLimitRemaining() ;
