@@ -421,7 +421,12 @@ int main(int argc, char** argv)
 
     /*重置链操作参数*/
     if(json_config.empty())
-        cp = ChainParams(genesis_info);//从头文件的字符串中读取
+    {
+        if(!test_mode)
+            cp = ChainParams(genesis_info);//从头文件的字符串中读取
+        else
+            cp = ChainParams(genesis_info_test);
+    }
     else
     {
         try
@@ -431,7 +436,7 @@ int main(int argc, char** argv)
         catch(...)
         {
             cerr << "指定文件的JSON格式错误" << endl;
-            cerr << "正确示例: " << endl << genesis_info_ljf << endl;
+            cerr << "正确示例: " << endl << genesis_info << endl;
             return -1;
         }
     }

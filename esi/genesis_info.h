@@ -49,6 +49,12 @@ R"E(
         "extraData": "0x0",
         "gasLimit": "0x174876E800"
     },
+    "accounts": {
+        "0000000000000000000000000000000000000001": { "wei": "1", "precompiled": { "name": "ecrecover", "linear": { "base": 3000, "word": 0 } } },
+        "0000000000000000000000000000000000000002": { "wei": "1", "precompiled": { "name": "sha256", "linear": { "base": 60, "word": 12 } } },
+        "0000000000000000000000000000000000000003": { "wei": "1", "precompiled": { "name": "ripemd160", "linear": { "base": 600, "word": 120 } } },
+        "0000000000000000000000000000000000000004": { "wei": "1", "precompiled": { "name": "identity", "linear": { "base": 15, "word": 3 } } }
+    },
     "NodeextraInfo": [
     {
         "Nodeid": "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111", 
@@ -86,6 +92,38 @@ R"E(
         "Port": 30305,
         "Idx": 3
     }
+    ]
+}
+)E";
+
+std::string const genesis_info_test =
+R"E(
+{
+    "logverbosity": "8",
+    "god": "0x1000000000000000000000000000000000000000",
+    "systemproxyaddress": "0x0000000000000000000000000000000000000000",
+    "listenip": "0.0.0.0",
+    "listenport": "30305",
+    "rpcport": "8555",
+    "datapath": "",
+    "params": {
+        "accountStartNonce": "0x",
+        "maximumExtraDataSize": "0x1000000",
+        "blockReward": "0x0",
+        "registrar": "",
+        "networkID": "0x265"
+    },
+    "genesis": {
+        "nonce": "0x0",
+        "difficulty": "0x0",
+        "mixhash": "0x0",
+        "author": "0x1000000000000000000000000000000000000000",
+        "timestamp": "0x0",
+        "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "extraData": "0x0",
+        "gasLimit": "0x174876E800"
+    },
+    "NodeextraInfo": [
     ]
 }
 )E";
