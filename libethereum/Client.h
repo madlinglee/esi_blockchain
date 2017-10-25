@@ -202,7 +202,7 @@ public:
     u256 filterCheck(const Transaction & _t, FilterCheckScene _checkscene = FilterCheckScene::None) const override;
     void    updateSystemContract(std::shared_ptr<Block> block) override;
     void updateCache(Address address) override;
-    u256 getNonce(Address addr){ReadGuard l(x_working);return m_working.transactionsFrom(addr);}
+    u256 getNonce(Address addr){ReadGuard l(x_postSeal);return m_postSeal.transactionsFrom(addr);}
 protected:
 	/// Perform critical setup functions.
 	/// Must be called in the constructor of the finally derived class.
